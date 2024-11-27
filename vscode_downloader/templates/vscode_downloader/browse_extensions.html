@@ -251,29 +251,48 @@
             margin-bottom: 20px;
             color: #333;
         }
+        
+        .search-container {
+            display: flex;
+            align-items: stretch;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .search-input, 
+        .search-button {
+            box-sizing: border-box;
+            height: 36px;
+            font-size: 14px;
+        }
+        
+        .search-input {
+            flex: 1;
+            padding: 0 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .search-button {
+            padding: 0 16px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="browse-card">
             <h2 class="card-title">Browse Extensions</h2>
-            <div class="search-form" style="box-shadow: none; margin-bottom: 30px;">
-                <div class="version-constraint">
-                    <label>VSCode Version Constraint:</label>
-                    <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
-                </div>
-                <form method="get">
+            <div class="search-form" style="box-shadow: none; margin-bottom: 10px;">
+                <form method="get" class="search-container">
                     <input type="text" name="search" class="search-input" 
                            value="{{ search_query }}" placeholder="Search extensions...">
-                    <div class="search-controls">
-                        <label>Page size:</label>
-                        <input type="number" name="page_size" value="{{ page_size }}" 
-                               min="1" max="100" style="width: 70px;">
-                        <label>Max pages:</label>
-                        <input type="number" name="max_page" value="{{ max_page }}" 
-                               min="1" max="10" style="width: 70px;">
-                        <button type="submit" class="search-button">Search</button>
-                    </div>
+                    <button type="submit" class="search-button">Search</button>
                 </form>
             </div>
             <div id="extensions-list">
@@ -293,6 +312,10 @@
 
         <div class="selected-extensions-card">
             <h2 class="card-title">Selected Extensions</h2>
+            <div class="version-constraint" style="margin-bottom: 20px;">
+                <label>VSCode Version Constraint:</label>
+                <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
+            </div>
             <div id="selected-extensions-list"></div>
             <div class="action-buttons">
                 <button class="action-button" onclick="exportSelections()">Export Selections</button>
