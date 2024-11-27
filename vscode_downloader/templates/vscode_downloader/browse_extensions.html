@@ -229,6 +229,12 @@
             max-height: calc(100vh - 250px);
             overflow-y: auto;
         }
+        
+        .extension-version {
+            font-size: 0.9em;
+            color: #666;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -316,17 +322,51 @@
                 button.textContent = 'Add';
             } else {
                 const vscodeVersion = document.getElementById('vscode-version').value;
-                selectedExtensions.set(extensionId, {
-                    publisher: extensionInfo.publisher,
-                    extension: extensionInfo.extensionName,
-                    displayName: extensionInfo.displayName,
-                    vscodeConstraint: vscodeVersion
-                });
-                card.classList.add('extension-added');
-                button.textContent = 'Remove';
+                // Fetch version compatibility info before adding
+                fetch(`/vscode_downloader/api/extensions/${extensionId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const compatibleVersion = findCompatibleVersion(data.version_info, vscodeVersion);
+                        if (compatibleVersion) {
+                            selectedExtensions.set(extensionId, {
+                                publisher: extensionInfo.publisher,
+                                extension: extensionInfo.extensionName,
+                                displayName: extensionInfo.displayName,
+                                version: compatibleVersion,
+                                vscodeConstraint: vscodeVersion
+                            });
+                            card.classList.add('extension-added');
+                            button.textContent = 'Remove';
+                            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
+                            updateSelectedList();
+                        } else {
+                            alert(`No compatible version found for VSCode ${vscodeVersion}`);
+                        }
+                    });
             }
-            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
-            updateSelectedList();
+        }
+
+        function findCompatibleVersion(versionInfo, vscodeVersion) {
+            for (const version of versionInfo) {
+                if (version.min_vscode === 'N/A' || 
+                    semverCompare(vscodeVersion, version.min_vscode) >= 0) {
+                    return version.version;
+                }
+            }
+            return null;
+        }
+
+        // Simple semver compare function
+        function semverCompare(a, b) {
+            const partsA = a.split('.').map(Number);
+            const partsB = b.split('.').map(Number);
+            
+            for (let i = 0; i < 3; i++) {
+                const numA = partsA[i] || 0;
+                const numB = partsB[i] || 0;
+                if (numA !== numB) return numA - numB;
+            }
+            return 0;
         }
 
         function updateSelectedList() {
@@ -334,7 +374,10 @@
             container.innerHTML = Array.from(selectedExtensions.entries())
                 .map(([id, ext]) => `
                     <div class="selected-extension-item">
-                        <span>${ext.displayName} (${id})</span>
+                        <div>
+                            <div>${ext.displayName} (${id})</div>
+                            <div class="extension-version">Version: ${ext.version} (VSCode ≥ ${ext.vscodeConstraint})</div>
+                        </div>
                         <button onclick="removeExtension('${id}')" class="action-button">Remove</button>
                     </div>
                 `).join('');
