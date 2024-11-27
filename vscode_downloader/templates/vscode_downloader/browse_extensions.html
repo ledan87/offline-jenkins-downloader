@@ -13,9 +13,9 @@
         }
         
         .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding-bottom: 200px; /* Space for fixed bottom panel */
+            display: flex;
+            gap: 20px;
+            padding: 20px;
         }
         
         .search-form {
@@ -235,56 +235,70 @@
             color: #666;
             margin-top: 4px;
         }
+        
+        .browse-card,
+        .selected-extensions-card {
+            flex: 1;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            min-width: 0; /* Prevents flex items from overflowing */
+        }
+        
+        .card-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            color: #333;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="card-layout">
-            <div class="browse-card">
-                <h2 class="card-title">Browse Extensions</h2>
-                <div class="search-form" style="box-shadow: none; margin-bottom: 30px;">
-                    <div class="version-constraint">
-                        <label>VSCode Version Constraint:</label>
-                        <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
-                    </div>
-                    <form method="get">
-                        <input type="text" name="search" class="search-input" 
-                               value="{{ search_query }}" placeholder="Search extensions...">
-                        <div class="search-controls">
-                            <label>Page size:</label>
-                            <input type="number" name="page_size" value="{{ page_size }}" 
-                                   min="1" max="100" style="width: 70px;">
-                            <label>Max pages:</label>
-                            <input type="number" name="max_page" value="{{ max_page }}" 
-                                   min="1" max="10" style="width: 70px;">
-                            <button type="submit" class="search-button">Search</button>
-                        </div>
-                    </form>
+        <div class="browse-card">
+            <h2 class="card-title">Browse Extensions</h2>
+            <div class="search-form" style="box-shadow: none; margin-bottom: 30px;">
+                <div class="version-constraint">
+                    <label>VSCode Version Constraint:</label>
+                    <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
                 </div>
-                <div id="extensions-list">
-                    {% for extension in extensions %}
-                    <div class="extension-card" 
-                         data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
-                         data-extension-info="{{ extension|jsonify }}"
-                         onclick="loadExtensionDetails(this)">
-                        <div class="extension-name">{{ extension.displayName }}</div>
-                        <div class="extension-publisher">{{ extension.publisher }}.{{ extension.extensionName }}</div>
-                        <div class="extension-description">{{ extension.shortDescription }}</div>
-                        <button class="add-extension-btn" onclick="toggleExtension(event, this)">Add</button>
+                <form method="get">
+                    <input type="text" name="search" class="search-input" 
+                           value="{{ search_query }}" placeholder="Search extensions...">
+                    <div class="search-controls">
+                        <label>Page size:</label>
+                        <input type="number" name="page_size" value="{{ page_size }}" 
+                               min="1" max="100" style="width: 70px;">
+                        <label>Max pages:</label>
+                        <input type="number" name="max_page" value="{{ max_page }}" 
+                               min="1" max="10" style="width: 70px;">
+                        <button type="submit" class="search-button">Search</button>
                     </div>
-                    {% endfor %}
-                </div>
+                </form>
             </div>
-
-            <div class="selected-card">
-                <h2 class="card-title">Selected Extensions</h2>
-                <div id="selected-extensions-list"></div>
-                <div class="action-buttons">
-                    <button class="action-button" onclick="exportSelections()">Export Selections</button>
-                    <input type="file" id="import-file" style="display: none" onchange="importSelections(this)">
-                    <button class="action-button" onclick="document.getElementById('import-file').click()">Import Selections</button>
-                    <button class="action-button" onclick="downloadSelected()">Download Selected</button>
+            <div id="extensions-list">
+                {% for extension in extensions %}
+                <div class="extension-card" 
+                     data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
+                     data-extension-info="{{ extension|jsonify }}"
+                     onclick="loadExtensionDetails(this)">
+                    <div class="extension-name">{{ extension.displayName }}</div>
+                    <div class="extension-publisher">{{ extension.publisher }}.{{ extension.extensionName }}</div>
+                    <div class="extension-description">{{ extension.shortDescription }}</div>
+                    <button class="add-extension-btn" onclick="toggleExtension(event, this)">Add</button>
                 </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="selected-extensions-card">
+            <h2 class="card-title">Selected Extensions</h2>
+            <div id="selected-extensions-list"></div>
+            <div class="action-buttons">
+                <button class="action-button" onclick="exportSelections()">Export Selections</button>
+                <input type="file" id="import-file" style="display: none" onchange="importSelections(this)">
+                <button class="action-button" onclick="document.getElementById('import-file').click()">Import Selections</button>
+                <button class="action-button" onclick="downloadSelected()">Download Selected</button>
             </div>
         </div>
     </div>
