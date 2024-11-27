@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VSCode Extensions Downloader</title>
+    <style>
+        .extension-list {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .input-section {
+            margin-bottom: 30px;
+        }
+        .extension-input {
+            width: 100%;
+            height: 100px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: vertical;
+        }
+        .helper-text {
+            color: #666;
+            font-size: 0.9em;
+            margin: 5px 0;
+        }
+        .parse-button, .download-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .parse-button:hover, .download-button:hover {
+            background-color: #005999;
+        }
+        .extension-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .extension-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="extension-list">
+        <h1>VSCode Extensions Downloader</h1>
+        
+        <div class="input-section">
+            <h2>Input Extensions</h2>
+            <p class="helper-text">Paste your extensions list (one per line or in JSON format from devcontainer.json)</p>
+            <textarea class="extension-input" name="extension_input" placeholder='Example formats:
+ms-python.python
+njpwerner.autodocstring
+
+or
+
+"extensions": [
+    "ms-python.python",
+    "njpwerner.autodocstring"
+]'></textarea>
+            <button type="button" class="parse-button" onclick="parseExtensions()">Parse Extensions</button>
+        </div>
+
+        <form method="post" action="{% url 'vscode_downloader:download' %}" id="extension-form">
+            {% csrf_token %}
+            <div id="parsed-extensions">
+                {% for extension in extensions %}
+                <div class="extension-item">
+                    <input type="checkbox" id="{{ extension.id }}" name="selected_extensions" value="{{ extension.id }}">
+                    <label for="{{ extension.id }}">
+                        <strong>{{ extension.id }}</strong>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="download-button">Download Selected Extensions</button>
+        </form>
+    </div>
+
+    <script>
+        function parseExtensions() {
+            const input = document.querySelector('.extension-input').value;
+            let extensions = [];
+
+            // Try parsing as JSON first
+            try {
+                const jsonData = JSON.parse(input);
+                if (Array.isArray(jsonData.extensions)) {
+                    extensions = jsonData.extensions;
+                }
+            } catch {
+                // If not JSON, split by newlines and filter empty lines
+                extensions = input.split('\n')
+                    .map(line => line.trim())
+                    .filter(line => line && !line.startsWith('#'));
+            }
+
+            // Update the parsed extensions section
+            const parsedSection = document.getElementById('parsed-extensions');
+            parsedSection.innerHTML = extensions.map(ext => `
+                <div class="extension-item">
+                    <input type="checkbox" id="${ext}" name="selected_extensions" value="${ext}">
+                    <label for="${ext}">
+                        <strong>${ext}</strong>
+                    </label>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>

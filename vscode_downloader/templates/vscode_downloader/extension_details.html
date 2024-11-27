@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>VSCode Extension Details</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .icon {
+            width: 128px;
+            height: 128px;
+            object-fit: contain;
+        }
+        .title-section {
+            flex-grow: 1;
+        }
+        .extension-name {
+            font-size: 2em;
+            margin: 0 0 10px 0;
+        }
+        .publisher {
+            color: #666;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            color: #666;
+        }
+        .description {
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .tag {
+            background-color: #f0f0f0;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .download-button {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-top: 20px;
+        }
+        .download-button:hover {
+            background-color: #005999;
+        }
+        .version-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .version-table th,
+        .version-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        .version-table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+            color: #333;
+        }
+        .version-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        .version-info {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        {% for extension in extension_details %}
+        <div class="header">
+            {% if extension.versions.0.files %}
+                {% for file in extension.versions.0.files %}
+                    {% if file.assetType == "Microsoft.VisualStudio.Services.Icons.Default" %}
+                        <img src="{{ file.source }}" alt="Extension icon" class="icon">
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+            <div class="title-section">
+                <h1 class="extension-name">{{ extension.displayName }}</h1>
+                <div class="publisher">
+                    By {{ extension.publisher.displayName }}
+                    ({{ extension.publisher.publisherName }}.{{ extension.extensionName }})
+                </div>
+                <div class="stats">
+                    <div class="stat-item">
+                        <span>Version:</span>
+                        <strong>{{ extension.versions.0.version }}</strong>
+                    </div>
+                    {% if extension.statistics %}
+                        {% for stat in extension.statistics %}
+                            {% if stat.statisticName == "install" %}
+                                <div class="stat-item">
+                                    <span>Downloads:</span>
+                                    <strong>{{ stat.value }}</strong>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if extension.version_info %}
+        <div class="version-info">
+            <div class="section-title">Version Compatibility</div>
+            <table class="version-table">
+                <thead>
+                    <tr>
+                        <th>Extension Version</th>
+                        <th>Minimum VSCode Version</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for version in extension.version_info %}
+                    <tr>
+                        <td>{{ version.version }}</td>
+                        <td>{{ version.min_vscode }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <div class="section">
+            <div class="description">{{ extension.shortDescription }}</div>
+            {% if extension.versions.0.files %}
+                {% for file in extension.versions.0.files %}
+                    {% if file.assetType == "Microsoft.VisualStudio.Services.Content.Details" %}
+                        <div class="full-description">{{ file.source|safe }}</div>
+                    {% endif %}
+                {% endfor %}
+            {% endif %}
+        </div>
+
+        {% if extension.categories %}
+        <div class="section">
+            <div class="section-title">Categories</div>
+            <div class="tag-list">
+                {% for category in extension.categories %}
+                    <span class="tag">{{ category }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if extension.tags %}
+        <div class="section">
+            <div class="section-title">Tags</div>
+            <div class="tag-list">
+                {% for tag in extension.tags %}
+                    <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</body>
+</html> 
