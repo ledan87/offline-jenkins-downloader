@@ -5,6 +5,7 @@ from django.views.decorators.http import require_http_methods
 import json
 import zipfile
 import requests
+import semver
 from io import BytesIO
 from .models import VsixPackage
 
@@ -281,6 +282,7 @@ def api_download_extensions(request):
         
     except Exception as e:
         return HttpResponse(str(e), status=500)
+
 def api_extension_details(request, extension_id):
     try:
         extension_details = list(get_vscode_extensions(extensionId=extension_id, max_page=1))
@@ -321,5 +323,60 @@ def api_extension_details(request, extension_id):
         
         extension['version_info'] = version_info
         return JsonResponse(extension)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_compatible_version(extension_id, vscode_target_version):
+    """
+    Get the highest compatible version of an extension for a specific VSCode version.
+    """
+    try:
+        extension_details = list(get_vscode_extensions(extensionId=extension_id, max_page=1))
+        if not extension_details:
+            return None
+        
+        extension = extension_details[0]
+        # Sort versions by version number (newest first)
+        versions = sorted(
+            extension.get('versions', []),
+            key=lambda x: x.get('version', '0.0.0'),
+            reverse=True
+        )
+        
+        for version in versions:
+            manifest_file = next(
+                (file for file in version.get('files', [])
+                 if file.get('assetType') == 'Microsoft.VisualStudio.Code.Manifest'),
+                None
+            )
+            
+            if manifest_file and manifest_file.get('source'):
+                try:
+                    manifest_response = requests.get(manifest_file['source'])
+                    manifest_response.raise_for_status()
+                    
+                    manifest = manifest_response.json()
+                    min_vscode = manifest.get('engines', {}).get('vscode', 'N/A')
+                    min_version = min_vscode.replace('^', '').replace('>=', '')
+
+                    if semver.compare(vscode_target_version, min_version) >= 0:
+                        return {
+                            'version': version.get('version'),
+                            'min_vscode': min_version
+                        }
+                except:
+                    continue
+        
+        return None
+    except Exception as e:
+        return None
+
+def api_get_compatible_version(request, extension_id, vscode_target_version):
+    """API endpoint to get compatible version"""
+    try:
+        result = api_compatible_version(extension_id, vscode_target_version)
+        if result:
+            return JsonResponse(result)
+        return JsonResponse({'error': 'No compatible version found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

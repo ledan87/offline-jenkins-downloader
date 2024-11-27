@@ -322,51 +322,35 @@
                 button.textContent = 'Add';
             } else {
                 const vscodeVersion = document.getElementById('vscode-version').value;
-                // Fetch version compatibility info before adding
-                fetch(`/vscode_downloader/api/extensions/${extensionId}/`)
-                    .then(response => response.json())
-                    .then(data => {
-                        const compatibleVersion = findCompatibleVersion(data.version_info, vscodeVersion);
-                        if (compatibleVersion) {
-                            selectedExtensions.set(extensionId, {
-                                publisher: extensionInfo.publisher,
-                                extension: extensionInfo.extensionName,
-                                displayName: extensionInfo.displayName,
-                                version: compatibleVersion,
-                                vscodeConstraint: vscodeVersion
-                            });
-                            card.classList.add('extension-added');
-                            button.textContent = 'Remove';
-                            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
-                            updateSelectedList();
-                        } else {
-                            alert(`No compatible version found for VSCode ${vscodeVersion}`);
+                // Use the new compatible version endpoint
+                fetch(`/vscode_downloader/api/extensions/${extensionId}/compatible/${vscodeVersion}/`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('No compatible version found');
                         }
+                        return response.json();
+                    })
+                    .then(data => {
+                        selectedExtensions.set(extensionId, {
+                            publisher: extensionInfo.publisher,
+                            extension: extensionInfo.extensionName,
+                            displayName: extensionInfo.displayName,
+                            version: data.version,
+                            vscodeConstraint: vscodeVersion
+                        });
+                        card.classList.add('extension-added');
+                        button.textContent = 'Remove';
+                        localStorage.setItem('selectedExtensions', 
+                            JSON.stringify(Array.from(selectedExtensions.entries())));
+                        updateSelectedList();
+                    })
+                    .catch(error => {
+                        alert(`Error: ${error.message}`);
                     });
             }
-        }
-
-        function findCompatibleVersion(versionInfo, vscodeVersion) {
-            for (const version of versionInfo) {
-                if (version.min_vscode === 'N/A' || 
-                    semverCompare(vscodeVersion, version.min_vscode) >= 0) {
-                    return version.version;
-                }
-            }
-            return null;
-        }
-
-        // Simple semver compare function
-        function semverCompare(a, b) {
-            const partsA = a.split('.').map(Number);
-            const partsB = b.split('.').map(Number);
-            
-            for (let i = 0; i < 3; i++) {
-                const numA = partsA[i] || 0;
-                const numB = partsB[i] || 0;
-                if (numA !== numB) return numA - numB;
-            }
-            return 0;
+            localStorage.setItem('selectedExtensions', 
+                JSON.stringify(Array.from(selectedExtensions.entries())));
+            updateSelectedList();
         }
 
         function updateSelectedList() {
