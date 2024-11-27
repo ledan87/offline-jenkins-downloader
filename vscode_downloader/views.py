@@ -45,26 +45,23 @@ def browse_extensions(request):
     extensions_list = []
     try:
         for extension in get_vscode_extensions(search_query=search_query, max_page=max_page, page_size=page_size):
-            # Basic search filter
-            extensions_list.append({
+            ext_data = {
                 'displayName': extension.get('displayName', ''),
                 'publisher': extension.get('publisher', {}).get('publisherName', ''),
                 'publisherDisplayName': extension.get('publisher', {}).get('displayName', ''),
                 'extensionName': extension.get('extensionName', ''),
                 'shortDescription': extension.get('shortDescription', ''),
                 'version': extension.get('versions', [{}])[0].get('version', ''),
-            })
+            }
+            extensions_list.append(ext_data)
     except Exception as e:
-        error_message = str(e)
-        return render(request, 'vscode_downloader/browse_extensions.html', {
-            'error': error_message
-        })
+        return render(request, 'vscode_downloader/browse_extensions.html', {'error': str(e)})
 
     return render(request, 'vscode_downloader/browse_extensions.html', {
         'extensions': extensions_list,
         'search_query': search_query,
         'page_size': page_size,
-        'max_page': max_page
+        'max_page': max_page,
     })
 
 def get_extension_details(request):
@@ -229,38 +226,59 @@ def api_download_extensions(request):
     try:
         data = json.loads(request.body)
         extensions = data.get('extensions', [])
+        vscode_version = data.get('vscodeVersion')
         
-        # Create a BytesIO object to store the zip file
         zip_buffer = BytesIO()
         
-        # Create a ZipFile object
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for extension_data in extensions:
-                # Create VsixPackage instance directly from the request data
-                vsix = VsixPackage(
-                    publisher=extension_data.get('publisher'),
-                    extension=extension_data.get('extension'),
-                    version=extension_data.get('version'),
-                    target=extension_data.get('target')
-                )
+                # Get extension details to find compatible version
+                extension_details = list(get_vscode_extensions(
+                    extensionId=f"{extension_data['publisher']}.{extension_data['extension']}",
+                    max_page=1
+                ))
                 
-                # Skip if required fields are missing
-                if not all([vsix.publisher, vsix.extension, vsix.version]):
+                if not extension_details:
                     continue
+                    
+                # Find the highest version compatible with vscode_version
+                compatible_version = None
+                for version in extension_details[0].get('versions', []):
+                    manifest_file = next(
+                        (file for file in version.get('files', [])
+                         if file.get('assetType') == 'Microsoft.VisualStudio.Code.Manifest'),
+                        None
+                    )
+                    
+                    if manifest_file and manifest_file.get('source'):
+                        try:
+                            manifest_response = requests.get(manifest_file['source'])
+                            manifest = manifest_response.json()
+                            min_vscode = manifest.get('engines', {}).get('vscode', '')
+                            min_version = min_vscode.replace('^', '').replace('>=', '')
+                            
+                            if semver.compare(vscode_version, min_version) >= 0:
+                                compatible_version = version.get('version')
+                                break
+                        except:
+                            continue
                 
-                # Download the VSIX file
-                response = requests.get(vsix.get_url())
-                if response.status_code == 200:
-                    zip_file.writestr(vsix.get_vsix_name(), response.content)
+                if compatible_version:
+                    vsix = VsixPackage(
+                        publisher=extension_data['publisher'],
+                        extension=extension_data['extension'],
+                        version=compatible_version
+                    )
+                    
+                    response = requests.get(vsix.get_url())
+                    if response.status_code == 200:
+                        zip_file.writestr(vsix.get_vsix_name(), response.content)
         
-        # Prepare the response
         zip_buffer.seek(0)
         response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
         response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
         return response
         
-    except json.JSONDecodeError:
-        return HttpResponse('Invalid JSON', status=400)
     except Exception as e:
         return HttpResponse(str(e), status=500)
 def api_extension_details(request, extension_id):

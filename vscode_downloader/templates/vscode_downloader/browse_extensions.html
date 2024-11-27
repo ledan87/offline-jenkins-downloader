@@ -1,250 +1,490 @@
+{% load json_filters %}
+
 <!DOCTYPE html>
 <html>
 <head>
     <title>VSCode Extensions Browser</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             margin: 0;
-            padding: 0;
+            padding: 20px;
             background-color: #f5f5f5;
-        }
-        .layout {
-            display: grid;
-            grid-template-columns: 400px 1fr;
-            height: 100vh;
-            overflow: hidden;
-        }
-        .master-view {
-            background-color: white;
-            border-right: 1px solid #ddd;
-            overflow-y: auto;
-            padding: 20px;
-        }
-        .detail-view {
-            overflow-y: auto;
-            padding: 20px;
-        }
-        .search-form {
-            position: sticky;
-            top: 0;
-            background-color: white;
-            padding: 20px;
-            border-bottom: 1px solid #ddd;
-            z-index: 100;
-        }
-        .search-input {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
-        }
-        .extension-card {
-            padding: 15px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        .extension-card:hover {
-            background-color: #f5f5f5;
-        }
-        .extension-card.selected {
-            background-color: #e3f2fd;
-        }
-        .extension-name {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        .extension-publisher {
-            color: #666;
-            font-size: 0.9em;
-            margin-bottom: 5px;
-        }
-        .extension-description {
-            font-size: 0.9em;
-            color: #444;
-        }
-        .loading {
-            text-align: center;
-            padding: 20px;
-            color: #666;
         }
         
-        .pagination-controls input {
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding-bottom: 200px; /* Space for fixed bottom panel */
+        }
+        
+        .search-form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .version-constraint {
+            margin-bottom: 15px;
+        }
+        
+        .version-constraint input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-left: 10px;
+        }
+        
+        .search-input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .search-controls input {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
         
         .search-button {
-            width: 100%;
-            padding: 12px;
-            font-size: 16px;
+            padding: 8px 16px;
             background-color: #007acc;
             color: white;
             border: none;
-            border-radius: 6px;
+            border-radius: 4px;
             cursor: pointer;
-            transition: background-color 0.3s;
         }
         
-        .search-button:hover {
-            background-color: #005999;
+        .extension-card {
+            background: white;
+            padding: 20px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+        }
+        
+        .extension-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .extension-card.selected {
+            background-color: #e3f2fd;
+        }
+        
+        .extension-name {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .extension-publisher {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        
+        .extension-description {
+            color: #444;
+            margin-right: 100px; /* Space for button */
+        }
+        
+        .add-extension-btn {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            padding: 8px 16px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .extension-added .add-extension-btn {
+            background-color: #dc3545;
+        }
+        
+        .selected-extensions {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            padding: 20px;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+        
+        .selected-extensions h3 {
+            margin-top: 0;
+        }
+        
+        .selected-extension-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            background: #f5f5f5;
+            margin: 5px 0;
+            border-radius: 4px;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-button {
+            padding: 8px 16px;
+            background-color: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        /* Modal styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+        }
+        
+        .modal-content {
+            position: relative;
+            background-color: white;
+            margin: 50px auto;
+            padding: 20px;
+            width: 80%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border-radius: 8px;
+        }
+        
+        .close-modal {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .card-layout {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .browse-card, .selected-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+        }
+        
+        .browse-card {
+            flex: 2;
+        }
+        
+        .selected-card {
+            flex: 1;
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .card-title {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        #selected-extensions-list {
+            max-height: calc(100vh - 250px);
+            overflow-y: auto;
         }
     </style>
 </head>
 <body>
-    <div class="layout">
-        <div class="master-view">
-            <div class="search-form">
-                <form method="get">
-                    <input type="text" name="search" class="search-input" 
-                           value="{{ search_query }}" placeholder="Search extensions...">
-                    <input type="number" name="page_size" value="{{ page_size }}" 
-                           min="1" max="100" style="width: 70px;">
-                    <input type="number" name="max_page" value="{{ max_page }}" 
-                           min="1" max="10" style="width: 70px;">
-                    <button type="submit">Search</button>
-                </form>
+    <div class="container">
+        <div class="card-layout">
+            <div class="browse-card">
+                <h2 class="card-title">Browse Extensions</h2>
+                <div class="search-form" style="box-shadow: none; margin-bottom: 30px;">
+                    <div class="version-constraint">
+                        <label>VSCode Version Constraint:</label>
+                        <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
+                    </div>
+                    <form method="get">
+                        <input type="text" name="search" class="search-input" 
+                               value="{{ search_query }}" placeholder="Search extensions...">
+                        <div class="search-controls">
+                            <label>Page size:</label>
+                            <input type="number" name="page_size" value="{{ page_size }}" 
+                                   min="1" max="100" style="width: 70px;">
+                            <label>Max pages:</label>
+                            <input type="number" name="max_page" value="{{ max_page }}" 
+                                   min="1" max="10" style="width: 70px;">
+                            <button type="submit" class="search-button">Search</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="extensions-list">
+                    {% for extension in extensions %}
+                    <div class="extension-card" 
+                         data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
+                         data-extension-info="{{ extension|jsonify }}"
+                         onclick="loadExtensionDetails(this)">
+                        <div class="extension-name">{{ extension.displayName }}</div>
+                        <div class="extension-publisher">{{ extension.publisher }}.{{ extension.extensionName }}</div>
+                        <div class="extension-description">{{ extension.shortDescription }}</div>
+                        <button class="add-extension-btn" onclick="toggleExtension(event, this)">Add</button>
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
 
-            <div id="extensions-list">
-                {% for extension in extensions %}
-                <div class="extension-card" 
-                     data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
-                     onclick="loadExtensionDetails(this)">
-                    <div class="extension-name">{{ extension.displayName }}</div>
-                    <div class="extension-publisher">{{ extension.publisher }}.{{ extension.extensionName }}</div>
-                    <div class="extension-description">{{ extension.shortDescription }}</div>
+            <div class="selected-card">
+                <h2 class="card-title">Selected Extensions</h2>
+                <div id="selected-extensions-list"></div>
+                <div class="action-buttons">
+                    <button class="action-button" onclick="exportSelections()">Export Selections</button>
+                    <input type="file" id="import-file" style="display: none" onchange="importSelections(this)">
+                    <button class="action-button" onclick="document.getElementById('import-file').click()">Import Selections</button>
+                    <button class="action-button" onclick="downloadSelected()">Download Selected</button>
                 </div>
-                {% endfor %}
             </div>
         </div>
+    </div>
 
-        <div class="detail-view" id="detail-view">
-            <div class="loading" style="display: none;">Loading extension details...</div>
-            <div id="extension-details"></div>
+    <!-- Modal for extension details -->
+    <div id="extension-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modal-content"></div>
         </div>
     </div>
 
     <script>
+        let selectedExtensions = new Map(JSON.parse(localStorage.getItem('selectedExtensions') || '[]'));
+        
+        // Add function to save version constraint
+        function saveVersionConstraint(value) {
+            localStorage.setItem('vscodeVersion', value);
+        }
+        
+        // Add event listener for version constraint input
+        document.getElementById('vscode-version').addEventListener('change', function(e) {
+            saveVersionConstraint(e.target.value);
+        });
+
+        function toggleExtension(event, button) {
+            event.stopPropagation();
+            const card = button.closest('.extension-card');
+            const extensionId = card.dataset.extensionId;
+            const extensionInfo = JSON.parse(card.dataset.extensionInfo);
+            
+            if (selectedExtensions.has(extensionId)) {
+                selectedExtensions.delete(extensionId);
+                card.classList.remove('extension-added');
+                button.textContent = 'Add';
+            } else {
+                const vscodeVersion = document.getElementById('vscode-version').value;
+                selectedExtensions.set(extensionId, {
+                    publisher: extensionInfo.publisher,
+                    extension: extensionInfo.extensionName,
+                    displayName: extensionInfo.displayName,
+                    vscodeConstraint: vscodeVersion
+                });
+                card.classList.add('extension-added');
+                button.textContent = 'Remove';
+            }
+            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
+            updateSelectedList();
+        }
+
+        function updateSelectedList() {
+            const container = document.getElementById('selected-extensions-list');
+            container.innerHTML = Array.from(selectedExtensions.entries())
+                .map(([id, ext]) => `
+                    <div class="selected-extension-item">
+                        <span>${ext.displayName} (${id})</span>
+                        <button onclick="removeExtension('${id}')" class="action-button">Remove</button>
+                    </div>
+                `).join('');
+        }
+
+        function removeExtension(extensionId) {
+            selectedExtensions.delete(extensionId);
+            const card = document.querySelector(`.extension-card[data-extension-id="${extensionId}"]`);
+            if (card) {
+                card.classList.remove('extension-added');
+                card.querySelector('.add-extension-btn').textContent = 'Add';
+            }
+            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
+            updateSelectedList();
+        }
+
         function loadExtensionDetails(element) {
-            // Remove selected class from all cards
-            document.querySelectorAll('.extension-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            
-            // Add selected class to clicked card
-            element.classList.add('selected');
-            
             const extensionId = element.dataset.extensionId;
-            const detailView = document.getElementById('extension-details');
-            const loading = document.querySelector('.loading');
+            const modal = document.getElementById('extension-modal');
+            const modalContent = document.getElementById('modal-content');
             
-            // Show loading state
-            loading.style.display = 'block';
-            detailView.innerHTML = '';
+            modalContent.innerHTML = '<div class="loading">Loading extension details...</div>';
+            modal.style.display = 'block';
             
-            // Fetch extension details
             fetch(`/vscode_downloader/api/extensions/${extensionId}/`)
                 .then(response => response.json())
                 .then(data => {
-                    loading.style.display = 'none';
-                    detailView.innerHTML = renderExtensionDetails(data);
+                    modalContent.innerHTML = renderExtensionDetails(data);
                 })
                 .catch(error => {
-                    loading.style.display = 'none';
-                    detailView.innerHTML = `<div class="error">Error loading extension details: ${error}</div>`;
+                    modalContent.innerHTML = `<div class="error">Error loading extension details: ${error}</div>`;
                 });
         }
 
-        function renderExtensionDetails(extension) {
-            // Create HTML for extension details (similar to extension_details.html template)
+        function closeModal() {
+            document.getElementById('extension-modal').style.display = 'none';
+        }
+
+        function exportSelections() {
+            const data = {
+                vscodeVersion: document.getElementById('vscode-version').value,
+                extensions: Array.from(selectedExtensions.values())
+            };
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'vscode-extensions.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importSelections(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const data = JSON.parse(e.target.result);
+                    document.getElementById('vscode-version').value = data.vscodeVersion;
+                    selectedExtensions.clear();
+                    data.extensions.forEach(ext => {
+                        selectedExtensions.set(`${ext.publisher}.${ext.extension}`, ext);
+                    });
+                    updateSelectedList();
+                    // Update UI for any visible cards
+                    document.querySelectorAll('.extension-card').forEach(card => {
+                        const id = card.dataset.extensionId;
+                        const button = card.querySelector('.add-extension-btn');
+                        if (selectedExtensions.has(id)) {
+                            card.classList.add('extension-added');
+                            button.textContent = 'Remove';
+                        } else {
+                            card.classList.remove('extension-added');
+                            button.textContent = 'Add';
+                        }
+                    });
+                };
+                reader.readAsText(file);
+            }
+        }
+
+        function downloadSelected() {
+            const data = {
+                vscodeVersion: document.getElementById('vscode-version').value,
+                extensions: Array.from(selectedExtensions.values())
+            };
+            
+            fetch('/vscode_downloader/api/download/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vscode-extensions.zip';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function renderExtensionDetails(data) {
             return `
-                <div class="container">
-                    <div class="header">
-                        ${extension.versions[0].files
-                            .filter(file => file.assetType === "Microsoft.VisualStudio.Services.Icons.Default")
-                            .map(file => `<img src="${file.source}" alt="Extension icon" class="icon">`)
-                            .join('')}
-                        <div class="title-section">
-                            <h1 class="extension-name">${extension.displayName}</h1>
-                            <div class="publisher">
-                                By ${extension.publisher.displayName}
-                                (${extension.publisher.publisherName}.${extension.extensionName})
-                            </div>
-                            <div class="stats">
-                                <div class="stat-item">
-                                    <span>Version:</span>
-                                    <strong>${extension.versions[0].version}</strong>
-                                </div>
-                                ${extension.statistics
-                                    .filter(stat => stat.statisticName === "install")
-                                    .map(stat => `
-                                        <div class="stat-item">
-                                            <span>Downloads:</span>
-                                            <strong>${stat.value}</strong>
-                                        </div>
-                                    `).join('')}
-                            </div>
-                        </div>
-                    </div>
-
-                    ${extension.version_info ? `
-                        <div class="version-info">
-                            <div class="section-title">Version Compatibility</div>
-                            <table class="version-table">
-                                <thead>
-                                    <tr>
-                                        <th>Extension Version</th>
-                                        <th>Minimum VSCode Version</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${extension.version_info.map(version => `
-                                        <tr>
-                                            <td>${version.version}</td>
-                                            <td>${version.min_vscode}</td>
-                                        </tr>
-                                    `).join('')}
-                                </tbody>
-                            </table>
-                        </div>
-                    ` : ''}
-
-                    <div class="section">
-                        <div class="description">${extension.shortDescription}</div>
-                        ${extension.versions[0].files
-                            .filter(file => file.assetType === "Microsoft.VisualStudio.Services.Content.Details")
-                            .map(file => `<div class="full-description">${file.source}</div>`)
-                            .join('')}
-                    </div>
-
-                    ${extension.categories ? `
-                        <div class="section">
-                            <div class="section-title">Categories</div>
-                            <div class="tag-list">
-                                ${extension.categories.map(category => 
-                                    `<span class="tag">${category}</span>`
-                                ).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
-
-                    ${extension.tags ? `
-                        <div class="section">
-                            <div class="section-title">Tags</div>
-                            <div class="tag-list">
-                                ${extension.tags.map(tag => 
-                                    `<span class="tag">${tag}</span>`
-                                ).join('')}
-                            </div>
-                        </div>
-                    ` : ''}
+                <h2>${data.displayName}</h2>
+                <p class="publisher">${data.publisher.publisherName}.${data.extensionName}</p>
+                <p class="description">${data.shortDescription}</p>
+                <div class="version-info">
+                    <h3>Version Compatibility</h3>
+                    <table class="version-table">
+                        <thead>
+                            <tr>
+                                <th>Version</th>
+                                <th>Minimum VSCode Version</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.version_info.map(v => `
+                                <tr>
+                                    <td>${v.version}</td>
+                                    <td>${v.min_vscode}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             `;
         }
+
+        function initializeUIState() {
+            // Restore version constraint with default fallback
+            const savedVersion = localStorage.getItem('vscodeVersion') || '1.60.0';
+            document.getElementById('vscode-version').value = savedVersion;
+
+            // Initialize extension cards
+            document.querySelectorAll('.extension-card').forEach(card => {
+                const id = card.dataset.extensionId;
+                const button = card.querySelector('.add-extension-btn');
+                if (selectedExtensions.has(id)) {
+                    card.classList.add('extension-added');
+                    button.textContent = 'Remove';
+                }
+            });
+            updateSelectedList();
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeUIState);
     </script>
 </body>
 </html> 
