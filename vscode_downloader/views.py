@@ -293,6 +293,20 @@ def api_extension_details(request, extension_id):
         version_info = []
         
         for version in extension.get('versions', []):
+
+            properties = {prop.get('key'): prop.get('value') for prop in version.get('properties', {})}
+
+            if properties.get('Microsoft.VisualStudio.Code.PreRelease'):
+                continue
+            if properties.get('Microsoft.VisualStudio.Code.Engine'):
+                min_vscode = properties.get('Microsoft.VisualStudio.Code.Engine')
+                min_version = min_vscode.replace('^', '').replace('>=', '')
+                version_info.append({
+                    'version': version.get('version'),
+                    'min_vscode': min_vscode.replace('^', '').replace('>=', '')
+                })
+                continue
+
             manifest_file = next(
                 (file for file in version.get('files', [])
                  if file.get('assetType') == 'Microsoft.VisualStudio.Code.Manifest'),
@@ -326,7 +340,7 @@ def api_extension_details(request, extension_id):
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
-def api_compatible_version(extension_id, vscode_target_version):
+def api_compatible_version(extension_id, vscode_target_version, target_platform):
     """
     Get the highest compatible version of an extension for a specific VSCode version.
     """
@@ -342,8 +356,31 @@ def api_compatible_version(extension_id, vscode_target_version):
             key=lambda x: x.get('version', '0.0.0'),
             reverse=True
         )
-        
+
         for version in versions:
+            
+            if version.get('targetPlatform') is not None and version.get('targetPlatform') != target_platform:
+                continue
+
+            properties = {prop.get('key'): prop.get('value') for prop in version.get('properties', {})}
+
+            if properties.get('Microsoft.VisualStudio.Code.PreRelease'):
+                continue
+
+            if properties.get('Microsoft.VisualStudio.Code.Engine'):
+                min_vscode = properties.get('Microsoft.VisualStudio.Code.Engine')
+                min_version = min_vscode.replace('^', '').replace('>=', '')
+                if semver.compare(vscode_target_version, min_version) >= 0:
+                    result = {
+                        'version': version.get('version'),
+                        'min_vscode': min_version
+                    }
+                    if version.get('targetPlatform'):
+                        result['target_platform'] = version.get('targetPlatform')
+                    return result
+                else:
+                    continue
+
             manifest_file = next(
                 (file for file in version.get('files', [])
                  if file.get('assetType') == 'Microsoft.VisualStudio.Code.Manifest'),
@@ -360,10 +397,13 @@ def api_compatible_version(extension_id, vscode_target_version):
                     min_version = min_vscode.replace('^', '').replace('>=', '')
 
                     if semver.compare(vscode_target_version, min_version) >= 0:
-                        return {
+                        result = {
                             'version': version.get('version'),
                             'min_vscode': min_version
                         }
+                        if version.get('targetPlatform'):
+                            result['target_platform'] = version.get('targetPlatform')
+                        return result
                 except:
                     continue
         
@@ -374,7 +414,8 @@ def api_compatible_version(extension_id, vscode_target_version):
 def api_get_compatible_version(request, extension_id, vscode_target_version):
     """API endpoint to get compatible version"""
     try:
-        result = api_compatible_version(extension_id, vscode_target_version)
+        target_platform = request.GET.get('target_platform', 'win32-x64')
+        result = api_compatible_version(extension_id, vscode_target_version, target_platform)
         if result:
             return JsonResponse(result)
         return JsonResponse({'error': 'No compatible version found'}, status=404)

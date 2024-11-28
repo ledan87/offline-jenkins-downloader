@@ -313,8 +313,20 @@
         <div class="selected-extensions-card">
             <h2 class="card-title">Selected Extensions</h2>
             <div class="version-constraint" style="margin-bottom: 20px;">
-                <label>VSCode Version Constraint:</label>
-                <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
+                <div style="display: flex; gap: 20px; align-items: center;">
+                    <div>
+                        <label>VSCode Version:</label>
+                        <input type="text" id="vscode-version" placeholder="e.g. 1.60.0">
+                    </div>
+                    <div>
+                        <label>Target Platform:</label>
+                        <select id="target-platform">
+                            <option value="win32-x64">Windows 64-bit</option>
+                            <option value="win32-x86">Windows 32-bit</option>
+                            <option value="linux-x64">Linux 64-bit</option>
+                        </select>
+                    </div>
+                </div>
             </div>
             <div id="selected-extensions-list"></div>
             <div class="action-buttons">
@@ -359,8 +371,9 @@
                 button.textContent = 'Add';
             } else {
                 const vscodeVersion = document.getElementById('vscode-version').value;
-                // Use the new compatible version endpoint
-                fetch(`/vscode_downloader/api/extensions/${extensionId}/compatible/${vscodeVersion}/`)
+                const targetPlatform = document.getElementById('target-platform').value;
+                
+                fetch(`/vscode_downloader/api/extensions/${extensionId}/compatible/${vscodeVersion}/?targetPlatform=${targetPlatform}`)
                     .then(response => {
                         if (!response.ok) {
                             throw new Error('No compatible version found');
@@ -368,12 +381,16 @@
                         return response.json();
                     })
                     .then(data => {
+                        if (!data.version) {
+                            throw new Error(`No version found for platform ${targetPlatform}`);
+                        }
                         selectedExtensions.set(extensionId, {
                             publisher: extensionInfo.publisher,
                             extension: extensionInfo.extensionName,
                             displayName: extensionInfo.displayName,
                             version: data.version,
-                            vscodeConstraint: vscodeVersion
+                            vscodeConstraint: vscodeVersion,
+                            targetPlatform: data.target_platform
                         });
                         card.classList.add('extension-added');
                         button.textContent = 'Remove';
@@ -385,9 +402,6 @@
                         alert(`Error: ${error.message}`);
                     });
             }
-            localStorage.setItem('selectedExtensions', 
-                JSON.stringify(Array.from(selectedExtensions.entries())));
-            updateSelectedList();
         }
 
         function updateSelectedList() {
