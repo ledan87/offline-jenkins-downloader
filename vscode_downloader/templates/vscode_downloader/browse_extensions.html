@@ -282,6 +282,31 @@
             cursor: pointer;
             font-size: 14px;
         }
+        
+        .download-progress {
+            margin-top: 8px;
+            background: #eee;
+            border-radius: 4px;
+            height: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: #007acc;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 12px;
+            text-shadow: 0 0 2px rgba(0,0,0,0.5);
+        }
     </style>
 </head>
 <body>
@@ -369,9 +394,12 @@
                 selectedExtensions.delete(extensionId);
                 card.classList.remove('extension-added');
                 button.textContent = 'Add';
+                updateSelectedList();
             } else {
                 const vscodeVersion = document.getElementById('vscode-version').value;
                 const targetPlatform = document.getElementById('target-platform').value;
+                
+                button.disabled = true;
                 
                 fetch(`/vscode_downloader/api/extensions/${extensionId}/compatible/${vscodeVersion}/?targetPlatform=${targetPlatform}`)
                     .then(response => {
@@ -384,24 +412,77 @@
                         if (!data.version) {
                             throw new Error(`No version found for platform ${targetPlatform}`);
                         }
+                        
+                        return fetch(`/vscode_downloader/api/extensions/${extensionId}/download/`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({
+                                ...data
+                            })
+                        });
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log(data)
                         selectedExtensions.set(extensionId, {
                             publisher: extensionInfo.publisher,
                             extension: extensionInfo.extensionName,
                             displayName: extensionInfo.displayName,
                             version: data.version,
-                            vscodeConstraint: vscodeVersion,
-                            targetPlatform: data.target_platform
+                            targetPlatform: data.targetPlatform,
+                            vscodeConstraint: data.vscode_constraint,
+                            downloadId: data.downloadId,
+                            downloading: true,
+                            progress: 0
                         });
-                        card.classList.add('extension-added');
+                        button.disabled = false;
                         button.textContent = 'Remove';
-                        localStorage.setItem('selectedExtensions', 
-                            JSON.stringify(Array.from(selectedExtensions.entries())));
+                        card.classList.add('extension-added');
                         updateSelectedList();
+                        monitorDownload(data.download_id, extensionId);
                     })
                     .catch(error => {
+                        button.disabled = false;
+                        button.textContent = 'Add';
                         alert(`Error: ${error.message}`);
                     });
             }
+        }
+
+        function monitorDownload(downloadId, extensionId) {
+            const checkStatus = () => {
+                fetch(`/vscode_downloader/api/download/status/${downloadId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const ext = selectedExtensions.get(extensionId);
+                        if (data.status === 'completed') {
+                            selectedExtensions.set(extensionId, {
+                                ...ext,
+                                downloading: false,
+                                progress: 100
+                            });
+                            updateSelectedList();
+                        } else if (data.status === 'error') {
+                            throw new Error('Download failed');
+                        } else {
+                            selectedExtensions.set(extensionId, {
+                                ...ext,
+                                progress: data.progress
+                            });
+                            updateSelectedList();
+                            setTimeout(checkStatus, 1000);
+                        }
+                    })
+                    .catch(error => {
+                        selectedExtensions.delete(extensionId);
+                        updateSelectedList();
+                        alert(`Error: ${error.message}`);
+                    });
+            };
+            
+            checkStatus();
         }
 
         function updateSelectedList() {
@@ -412,10 +493,19 @@
                         <div>
                             <div>${ext.displayName} (${id})</div>
                             <div class="extension-version">Version: ${ext.version} (VSCode ≥ ${ext.vscodeConstraint})</div>
+                            ${ext.downloading ? 
+                                `<div class="download-progress">
+                                    <div class="progress-bar" style="width: ${ext.progress}%"></div>
+                                    <span class="progress-text">${ext.progress}%</span>
+                                 </div>` 
+                                : ''}
                         </div>
                         <button onclick="removeExtension('${id}')" class="action-button">Remove</button>
                     </div>
                 `).join('');
+            
+            // Save to localStorage whenever the list changes
+            localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
         }
 
         function removeExtension(extensionId) {
@@ -546,9 +636,22 @@
         }
 
         function initializeUIState() {
-            // Restore version constraint with default fallback
-            const savedVersion = localStorage.getItem('vscodeVersion') || '1.60.0';
-            document.getElementById('vscode-version').value = savedVersion;
+            // Restore selected extensions from localStorage
+            const savedExtensions = localStorage.getItem('selectedExtensions');
+            if (savedExtensions) {
+                selectedExtensions = new Map(JSON.parse(savedExtensions));
+            }
+
+            // Restore VSCode version and target platform
+            const savedVersion = localStorage.getItem('vscodeVersion');
+            if (savedVersion) {
+                document.getElementById('vscode-version').value = savedVersion;
+            }
+
+            const savedPlatform = localStorage.getItem('targetPlatform');
+            if (savedPlatform) {
+                document.getElementById('target-platform').value = savedPlatform;
+            }
 
             // Initialize extension cards
             document.querySelectorAll('.extension-card').forEach(card => {
@@ -559,8 +662,18 @@
                     button.textContent = 'Remove';
                 }
             });
+            
             updateSelectedList();
         }
+
+        // Add event listeners for version and platform changes
+        document.getElementById('vscode-version').addEventListener('change', function(e) {
+            localStorage.setItem('vscodeVersion', e.target.value);
+        });
+
+        document.getElementById('target-platform').addEventListener('change', function(e) {
+            localStorage.setItem('targetPlatform', e.target.value);
+        });
 
         document.addEventListener('DOMContentLoaded', initializeUIState);
     </script>

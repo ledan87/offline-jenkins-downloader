@@ -9,4 +9,6 @@ urlpatterns = [
     path('api/extensions/<str:extension_id>/', views.api_extension_details, name='api_extension_details'),
     path('api/extensions/<str:extension_id>/compatible/<str:vscode_target_version>/', 
          views.api_get_compatible_version, name='api_get_compatible_version'),
+    path('api/extensions/<str:extension_id>/download/', views.api_start_extension_download, name='api_start_extension_download'),
+    path('api/download/status/<str:download_id>/', views.api_download_status, name='api_download_status'),
 ] 

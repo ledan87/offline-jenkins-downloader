@@ -8,33 +8,10 @@ import requests
 import semver
 from io import BytesIO
 from .models import VsixPackage
-
-def extension_list(request):
-    # Example extensions data - you can replace this with your actual data
-    extensions = [
-        {
-            'id': 'ms-python.python',
-            'name': 'Python',
-            'description': 'IntelliSense (Pylance), Linting, Debugging, code formatting, refactoring, etc.'
-        },
-        {
-            'id': 'njpwerner.autodocstring',
-            'name': 'autoDocstring',
-            'description': 'Generates python docstrings automatically'
-        },
-        # Add more extensions as needed
-    ]
-    
-    return render(request, 'vscode_downloader/main.html', {'extensions': extensions})
-
-def download_extensions(request):
-    if request.method == 'POST':
-        selected_extensions = request.POST.getlist('selected_extensions')
-        # TODO: Implement the download logic
-        # This will be implemented in the next step
-        pass
-
-
+from django.core.cache import cache
+import uuid
+import threading
+import os
 
 def browse_extensions(request):
     # Get query parameters with defaults
@@ -227,53 +204,51 @@ def api_download_extensions(request):
     try:
         data = json.loads(request.body)
         extensions = data.get('extensions', [])
-        vscode_version = data.get('vscodeVersion')
-        
+
+        print(f'Downloading {len(extensions)} extensions')
+
         zip_buffer = BytesIO()
-        
+            
         with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for extension_data in extensions:
                 # Get extension details to find compatible version
-                extension_details = list(get_vscode_extensions(
-                    extensionId=f"{extension_data['publisher']}.{extension_data['extension']}",
-                    max_page=1
-                ))
+                print(f'Getting extension details for {extension_data}')
+                publisher = extension_data['publisher']
+                extension = extension_data['extension']
+                version = extension_data['version']
+                target_platform = extension_data.get('targetPlatform')
                 
-                if not extension_details:
-                    continue
-                    
-                # Find the highest version compatible with vscode_version
-                compatible_version = None
-                for version in extension_details[0].get('versions', []):
-                    manifest_file = next(
-                        (file for file in version.get('files', [])
-                         if file.get('assetType') == 'Microsoft.VisualStudio.Code.Manifest'),
-                        None
-                    )
-                    
-                    if manifest_file and manifest_file.get('source'):
-                        try:
-                            manifest_response = requests.get(manifest_file['source'])
-                            manifest = manifest_response.json()
-                            min_vscode = manifest.get('engines', {}).get('vscode', '')
-                            min_version = min_vscode.replace('^', '').replace('>=', '')
-                            
-                            if semver.compare(vscode_version, min_version) >= 0:
-                                compatible_version = version.get('version')
-                                break
-                        except:
-                            continue
+                vsix = VsixPackage(
+                    publisher=publisher,
+                    extension=extension,
+                    version=version,
+                    target=target_platform
+                )
+
+                print(f'Downloading {vsix.get_vsix_name()}')
                 
-                if compatible_version:
-                    vsix = VsixPackage(
-                        publisher=extension_data['publisher'],
-                        extension=extension_data['extension'],
-                        version=compatible_version
-                    )
-                    
+                # Create absolute path for temp directory
+                tmp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp')
+                os.makedirs(tmp_dir, exist_ok=True)
+                
+                # Use absolute path for temp file
+                temp_path = os.path.join(tmp_dir, vsix.get_vsix_name())
+
+                # Check if file exists in tmp directory
+                if not os.path.exists(temp_path):
+                    # Download if not exists
                     response = requests.get(vsix.get_url())
-                    if response.status_code == 200:
-                        zip_file.writestr(vsix.get_vsix_name(), response.content)
+                    response.raise_for_status()
+                    
+                    # Save to tmp directory
+                    os.makedirs(tmp_dir, exist_ok=True)
+                    with open(temp_path, 'wb') as f:
+                        f.write(response.content)
+
+
+                print(f'Adding {vsix.get_vsix_name()} to zip file')
+                # Add to zip file using arcname to control the name in the zip
+                zip_file.write(temp_path, arcname=vsix.get_vsix_name())
         
         zip_buffer.seek(0)
         response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
@@ -281,6 +256,7 @@ def api_download_extensions(request):
         return response
         
     except Exception as e:
+        print(f'Error downloading extensions: {str(e)}')
         return HttpResponse(str(e), status=500)
 
 def api_extension_details(request, extension_id):
@@ -373,7 +349,7 @@ def api_compatible_version(extension_id, vscode_target_version, target_platform)
                 if semver.compare(vscode_target_version, min_version) >= 0:
                     result = {
                         'version': version.get('version'),
-                        'min_vscode': min_version
+                        'vscode_constraint': min_version
                     }
                     if version.get('targetPlatform'):
                         result['target_platform'] = version.get('targetPlatform')
@@ -399,7 +375,7 @@ def api_compatible_version(extension_id, vscode_target_version, target_platform)
                     if semver.compare(vscode_target_version, min_version) >= 0:
                         result = {
                             'version': version.get('version'),
-                            'min_vscode': min_version
+                            'vscode_constraint': min_version
                         }
                         if version.get('targetPlatform'):
                             result['target_platform'] = version.get('targetPlatform')
@@ -421,3 +397,91 @@ def api_get_compatible_version(request, extension_id, vscode_target_version):
         return JsonResponse({'error': 'No compatible version found'}, status=404)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+def create_download_id():
+    return str(uuid.uuid4())
+
+def get_download_status(download_id):
+    return cache.get(f'download_status_{download_id}', {
+        'status': 'not_found',
+        'progress': 0
+    })
+
+def set_download_status(download_id, status, progress=0):
+    cache.set(f'download_status_{download_id}', {
+        'status': status,
+        'progress': progress
+    }, timeout=3600)  # Cache for 1 hour
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_start_extension_download(request, extension_id):
+    try:
+        data = json.loads(request.body)
+        version = data.get('version')
+        target_platform = data.get('targetPlatform')
+        vscode_constraint = data.get('vscodeConstraint')
+        download_id = create_download_id()
+        set_download_status(download_id, 'pending', 0)
+        
+        # Start download in background
+        threading.Thread(target=download_extension_async, args=(
+            download_id, 
+            extension_id, 
+            version,
+            target_platform
+        )).start()
+        data['download_id'] = download_id
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_download_status(request, download_id):
+    status = get_download_status(download_id)
+    return JsonResponse(status)
+
+def download_extension_async(download_id, extension_id, version, target_platform):
+    try:
+        publisher, extension = extension_id.split('.')
+        vsix = VsixPackage(
+            publisher=publisher,
+            extension=extension,
+            version=version,
+            target=target_platform
+        )
+        
+        set_download_status(download_id, 'downloading', 0)
+        response = requests.get(vsix.get_url(), stream=True)
+        response.raise_for_status()
+        
+        # Get total file size
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 8192
+        downloaded = 0
+
+        # Create tmp directory if it doesn't exist
+        os.makedirs('./tmp', exist_ok=True)
+        # Store the downloaded file temporarily
+        temp_path = f'./tmp/{vsix.get_vsix_name()}'
+
+        # Check if file already exists
+        if os.path.exists(temp_path):
+            set_download_status(download_id, 'completed', 100)
+            return
+
+        with open(temp_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=block_size):
+                downloaded += len(chunk)
+                f.write(chunk)
+                
+                # Calculate and update progress
+                if total_size > 0:  # Avoid division by zero
+                    progress = int((downloaded / total_size) * 100)
+                    set_download_status(download_id, 'downloading', progress)
+        
+        set_download_status(download_id, 'completed', 100)
+        
+    except Exception as e:
+        set_download_status(download_id, 'error', 0)
+        # Optionally log the error
+        print(f"Download error for {extension_id}: {str(e)}")
