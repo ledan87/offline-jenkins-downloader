@@ -404,14 +404,228 @@ def create_download_id():
 def get_download_status(download_id):
     return cache.get(f'download_status_{download_id}', {
         'status': 'not_found',
-        'progress': 0
+        'progress': 0,
+        'current_file': '',
+        'total_files': 0,
+        'downloaded_files': 0,
+        'details': []
     })
 
-def set_download_status(download_id, status, progress=0):
-    cache.set(f'download_status_{download_id}', {
+def set_download_status(download_id, status, progress=0, current_file='', total_files=0, downloaded_files=0, details=None):
+    current_status = get_download_status(download_id)
+    if details is not None:
+        current_status['details'] = details
+    current_status.update({
         'status': status,
-        'progress': progress
-    }, timeout=3600)  # Cache for 1 hour
+        'progress': progress,
+        'current_file': current_file,
+        'total_files': total_files,
+        'downloaded_files': downloaded_files
+    })
+    cache.set(f'download_status_{download_id}', current_status, timeout=3600)  # Cache for 1 hour
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_start_bulk_download(request):
+    """Start a bulk download with detailed progress tracking"""
+    try:
+        data = json.loads(request.body)
+        extensions = data.get('extensions', [])
+        
+        if not extensions:
+            return JsonResponse({'error': 'No extensions provided'}, status=400)
+        
+        download_id = create_download_id()
+        set_download_status(download_id, 'starting', 0, '', len(extensions), 0, [])
+        
+        # Start download in background
+        threading.Thread(target=download_extensions_bulk_async, args=(download_id, extensions)).start()
+        
+        return JsonResponse({'download_id': download_id})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def download_extensions_bulk_async(download_id, extensions):
+    """Download multiple extensions with detailed progress tracking"""
+    try:
+        total_files = len(extensions)
+        downloaded_files = 0
+        details = []
+        
+        set_download_status(download_id, 'preparing', 0, '', total_files, downloaded_files, details)
+        
+        # Create temp directory
+        tmp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        
+        # Download each extension
+        for i, extension_data in enumerate(extensions):
+            publisher = extension_data['publisher']
+            extension = extension_data['extension']
+            version = extension_data['version']
+            target_platform = extension_data.get('targetPlatform')
+            
+            vsix = VsixPackage(
+                publisher=publisher,
+                extension=extension,
+                version=version,
+                target=target_platform
+            )
+            
+            current_file = f"{publisher}.{extension}-{version}.vsix"
+            set_download_status(download_id, 'downloading', 
+                              int((i / total_files) * 50), 
+                              current_file, total_files, downloaded_files, details)
+            
+            # Add detail about current file
+            details.append(f"Downloading {current_file}...")
+            set_download_status(download_id, 'downloading', 
+                              int((i / total_files) * 50), 
+                              current_file, total_files, downloaded_files, details)
+            
+            # Download file
+            temp_path = os.path.join(tmp_dir, vsix.get_vsix_name())
+            
+            if not os.path.exists(temp_path):
+                try:
+                    response = requests.get(vsix.get_url(), stream=True)
+                    response.raise_for_status()
+                    
+                    with open(temp_path, 'wb') as f:
+                        for chunk in response.iter_content(chunk_size=8192):
+                            f.write(chunk)
+                    
+                    details.append(f"✓ Downloaded {current_file}")
+                except Exception as e:
+                    details.append(f"✗ Failed to download {current_file}: {str(e)}")
+                    continue
+            else:
+                details.append(f"✓ {current_file} already exists (cached)")
+            
+            downloaded_files += 1
+            set_download_status(download_id, 'downloading', 
+                              int((downloaded_files / total_files) * 50), 
+                              current_file, total_files, downloaded_files, details)
+        
+        # Create zip file
+        set_download_status(download_id, 'packaging', 50, 'Creating ZIP file...', total_files, downloaded_files, details)
+        details.append("Creating ZIP file...")
+        
+        zip_buffer = BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for i, extension_data in enumerate(extensions):
+                publisher = extension_data['publisher']
+                extension = extension_data['extension']
+                version = extension_data['version']
+                target_platform = extension_data.get('targetPlatform')
+                
+                vsix = VsixPackage(
+                    publisher=publisher,
+                    extension=extension,
+                    version=version,
+                    target=target_platform
+                )
+                
+                temp_path = os.path.join(tmp_dir, vsix.get_vsix_name())
+                if os.path.exists(temp_path):
+                    zip_file.write(temp_path, arcname=vsix.get_vsix_name())
+                    details.append(f"✓ Added {vsix.get_vsix_name()} to ZIP")
+                    
+                    # Update progress for packaging phase
+                    packaging_progress = 50 + int((i / total_files) * 50)
+                    set_download_status(download_id, 'packaging', packaging_progress, 
+                                      f'Adding {vsix.get_vsix_name()} to ZIP...', 
+                                      total_files, downloaded_files, details)
+        
+        # Store the zip data in cache for retrieval
+        zip_buffer.seek(0)
+        zip_data = zip_buffer.getvalue()
+        cache.set(f'download_zip_{download_id}', zip_data, timeout=3600)
+        
+        details.append("✓ ZIP file created successfully")
+        set_download_status(download_id, 'completed', 100, 'Download complete!', total_files, downloaded_files, details)
+        
+    except Exception as e:
+        details.append(f"✗ Error: {str(e)}")
+        set_download_status(download_id, 'error', 0, f'Error: {str(e)}', total_files, downloaded_files, details)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_download_extensions(request):
+    try:
+        data = json.loads(request.body)
+        extensions = data.get('extensions', [])
+
+        print(f'Downloading {len(extensions)} extensions')
+
+        zip_buffer = BytesIO()
+            
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for extension_data in extensions:
+                # Get extension details to find compatible version
+                print(f'Getting extension details for {extension_data}')
+                publisher = extension_data['publisher']
+                extension = extension_data['extension']
+                version = extension_data['version']
+                target_platform = extension_data.get('targetPlatform')
+                
+                vsix = VsixPackage(
+                    publisher=publisher,
+                    extension=extension,
+                    version=version,
+                    target=target_platform
+                )
+
+                print(f'Downloading {vsix.get_vsix_name()}')
+                
+                # Create absolute path for temp directory
+                tmp_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tmp')
+                os.makedirs(tmp_dir, exist_ok=True)
+                
+                # Use absolute path for temp file
+                temp_path = os.path.join(tmp_dir, vsix.get_vsix_name())
+
+                # Check if file exists in tmp directory
+                if not os.path.exists(temp_path):
+                    # Download if not exists
+                    response = requests.get(vsix.get_url())
+                    response.raise_for_status()
+                    
+                    # Save to tmp directory
+                    os.makedirs(tmp_dir, exist_ok=True)
+                    with open(temp_path, 'wb') as f:
+                        f.write(response.content)
+
+
+                print(f'Adding {vsix.get_vsix_name()} to zip file')
+                # Add to zip file using arcname to control the name in the zip
+                zip_file.write(temp_path, arcname=vsix.get_vsix_name())
+        
+        zip_buffer.seek(0)
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
+        return response
+        
+    except Exception as e:
+        print(f'Error downloading extensions: {str(e)}')
+        return HttpResponse(str(e), status=500)
+
+def api_get_bulk_download_zip(request, download_id):
+    """Get the completed ZIP file for a bulk download"""
+    try:
+        zip_data = cache.get(f'download_zip_{download_id}')
+        if not zip_data:
+            return JsonResponse({'error': 'ZIP file not found or expired'}, status=404)
+        
+        response = HttpResponse(zip_data, content_type='application/zip')
+        response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
+        return response
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+def api_download_status(request, download_id):
+    status = get_download_status(download_id)
+    return JsonResponse(status)
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -435,10 +649,6 @@ def api_start_extension_download(request, extension_id):
         return JsonResponse(data)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
-def api_download_status(request, download_id):
-    status = get_download_status(download_id)
-    return JsonResponse(status)
 
 def download_extension_async(download_id, extension_id, version, target_platform):
     try:

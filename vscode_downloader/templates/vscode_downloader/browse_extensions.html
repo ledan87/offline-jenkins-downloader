@@ -2,6 +2,7 @@
 
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>VSCode Extensions Browser</title>
     <style>
@@ -11,32 +12,32 @@
             padding: 20px;
             background-color: #f5f5f5;
         }
-        
+
         .container {
             display: flex;
             gap: 20px;
             padding: 20px;
         }
-        
+
         .search-form {
             background: white;
             padding: 20px;
             border-radius: 8px;
             margin-bottom: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        
+
         .version-constraint {
             margin-bottom: 15px;
         }
-        
+
         .version-constraint input {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
             margin-left: 10px;
         }
-        
+
         .search-input {
             width: 100%;
             padding: 8px;
@@ -44,19 +45,19 @@
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        
+
         .search-controls {
             display: flex;
             gap: 10px;
             align-items: center;
         }
-        
+
         .search-controls input {
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        
+
         .search-button {
             padding: 8px 16px;
             background-color: #007acc;
@@ -65,43 +66,44 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .extension-card {
             background: white;
             padding: 20px;
             margin-bottom: 10px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             cursor: pointer;
             transition: transform 0.2s;
             position: relative;
         }
-        
+
         .extension-card:hover {
             transform: translateY(-2px);
         }
-        
+
         .extension-card.selected {
             background-color: #e3f2fd;
         }
-        
+
         .extension-name {
             font-size: 1.2em;
             font-weight: bold;
             margin-bottom: 5px;
         }
-        
+
         .extension-publisher {
             color: #666;
             font-size: 0.9em;
             margin-bottom: 10px;
         }
-        
+
         .extension-description {
             color: #444;
-            margin-right: 100px; /* Space for button */
+            margin-right: 100px;
+            /* Space for button */
         }
-        
+
         .add-extension-btn {
             position: absolute;
             right: 20px;
@@ -113,11 +115,11 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .extension-added .add-extension-btn {
             background-color: #dc3545;
         }
-        
+
         .selected-extensions {
             position: fixed;
             bottom: 0;
@@ -125,14 +127,14 @@
             right: 0;
             background: white;
             padding: 20px;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
             z-index: 100;
         }
-        
+
         .selected-extensions h3 {
             margin-top: 0;
         }
-        
+
         .selected-extension-item {
             display: flex;
             justify-content: space-between;
@@ -142,13 +144,13 @@
             margin: 5px 0;
             border-radius: 4px;
         }
-        
+
         .action-buttons {
             display: flex;
             gap: 10px;
             margin-top: 15px;
         }
-        
+
         .action-button {
             padding: 8px 16px;
             background-color: #007acc;
@@ -157,7 +159,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         /* Modal styles */
         .modal {
             display: none;
@@ -166,10 +168,10 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            background-color: rgba(0, 0, 0, 0.5);
             z-index: 1000;
         }
-        
+
         .modal-content {
             position: relative;
             background-color: white;
@@ -181,7 +183,7 @@
             overflow-y: auto;
             border-radius: 8px;
         }
-        
+
         .close-modal {
             position: absolute;
             right: 20px;
@@ -190,25 +192,26 @@
             cursor: pointer;
             color: #666;
         }
-        
+
         .card-layout {
             display: flex;
             gap: 20px;
             margin-bottom: 20px;
         }
-        
-        .browse-card, .selected-card {
+
+        .browse-card,
+        .selected-card {
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             flex: 1;
         }
-        
+
         .browse-card {
             flex: 2;
         }
-        
+
         .selected-card {
             flex: 1;
             position: sticky;
@@ -217,62 +220,63 @@
             max-height: calc(100vh - 40px);
             overflow-y: auto;
         }
-        
+
         .card-title {
             font-size: 1.5em;
             margin-bottom: 20px;
             padding-bottom: 10px;
             border-bottom: 1px solid #eee;
         }
-        
+
         #selected-extensions-list {
             max-height: calc(100vh - 250px);
             overflow-y: auto;
         }
-        
+
         .extension-version {
             font-size: 0.9em;
             color: #666;
             margin-top: 4px;
         }
-        
+
         .browse-card,
         .selected-extensions-card {
             flex: 1;
             background: white;
             padding: 20px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            min-width: 0; /* Prevents flex items from overflowing */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            min-width: 0;
+            /* Prevents flex items from overflowing */
         }
-        
+
         .card-title {
             font-size: 1.5em;
             margin-bottom: 20px;
             color: #333;
         }
-        
+
         .search-container {
             display: flex;
             align-items: stretch;
             gap: 10px;
             margin-top: 10px;
         }
-        
-        .search-input, 
+
+        .search-input,
         .search-button {
             box-sizing: border-box;
             height: 36px;
             font-size: 14px;
         }
-        
+
         .search-input {
             flex: 1;
             padding: 0 12px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
-        
+
         .search-button {
             padding: 0 16px;
             background-color: #007acc;
@@ -282,7 +286,7 @@
             cursor: pointer;
             font-size: 14px;
         }
-        
+
         .download-progress {
             margin-top: 8px;
             background: #eee;
@@ -291,13 +295,13 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         .progress-bar {
             height: 100%;
             background: #007acc;
             transition: width 0.3s ease;
         }
-        
+
         .progress-text {
             position: absolute;
             left: 50%;
@@ -305,27 +309,143 @@
             transform: translate(-50%, -50%);
             color: white;
             font-size: 12px;
-            text-shadow: 0 0 2px rgba(0,0,0,0.5);
+            text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Loading spinner styles for bulk download */
+        .bulk-loading-spinner {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .bulk-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007acc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .bulk-loading-text {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .bulk-download-status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .bulk-download-status.success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .bulk-download-status.error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .action-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        /* Detailed progress styles for bulk download */
+        .bulk-progress-container {
+            margin-top: 15px;
+            display: none;
+        }
+
+        .bulk-progress-bar-container {
+            width: 100%;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            height: 20px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        .bulk-progress-bar-fill {
+            height: 100%;
+            background-color: #007acc;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .bulk-progress-details {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+            line-height: 1.4;
+        }
+
+        .bulk-progress-detail-item {
+            margin-bottom: 5px;
+            padding: 2px 0;
+        }
+
+        .bulk-progress-detail-item.success {
+            color: #155724;
+        }
+
+        .bulk-progress-detail-item.error {
+            color: #721c24;
+        }
+
+        .bulk-progress-detail-item.info {
+            color: #0c5460;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <div class="browse-card">
             <h2 class="card-title">Browse Extensions</h2>
             <div class="search-form" style="box-shadow: none; margin-bottom: 10px;">
                 <form method="get" class="search-container">
-                    <input type="text" name="search" class="search-input" 
-                           value="{{ search_query }}" placeholder="Search extensions...">
+                    <input type="text" name="search" class="search-input" value="{{ search_query }}"
+                        placeholder="Search extensions...">
                     <button type="submit" class="search-button">Search</button>
                 </form>
             </div>
             <div id="extensions-list">
                 {% for extension in extensions %}
-                <div class="extension-card" 
-                     data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
-                     data-extension-info="{{ extension|jsonify }}"
-                     onclick="loadExtensionDetails(this)">
+                <div class="extension-card" data-extension-id="{{ extension.publisher }}.{{ extension.extensionName }}"
+                    data-extension-info="{{ extension|jsonify }}" onclick="loadExtensionDetails(this)">
                     <div class="extension-name">{{ extension.displayName }}</div>
                     <div class="extension-publisher">{{ extension.publisher }}.{{ extension.extensionName }}</div>
                     <div class="extension-description">{{ extension.shortDescription }}</div>
@@ -357,9 +477,28 @@
             <div class="action-buttons">
                 <button class="action-button" onclick="exportSelections()">Export Selections</button>
                 <input type="file" id="import-file" style="display: none" onchange="importSelections(this)">
-                <button class="action-button" onclick="document.getElementById('import-file').click()">Import Selections</button>
-                <button class="action-button" onclick="downloadSelected()">Download Selected</button>
+                <button class="action-button" onclick="document.getElementById('import-file').click()">Import
+                    Selections</button>
+                <button class="action-button" id="bulk-download-button" onclick="downloadSelected()">Download
+                    Selected</button>
             </div>
+
+            <!-- Bulk download loading spinner -->
+            <div id="bulk-loading-spinner" class="bulk-loading-spinner">
+                <div class="bulk-spinner"></div>
+                <div class="bulk-loading-text">Preparing download...</div>
+            </div>
+
+            <!-- Bulk download progress container -->
+            <div id="bulk-progress-container" class="bulk-progress-container">
+                <div class="bulk-progress-bar-container">
+                    <div id="bulk-progress-bar-fill" class="bulk-progress-bar-fill" style="width: 0%">0%</div>
+                </div>
+                <div id="bulk-progress-details" class="bulk-progress-details"></div>
+            </div>
+
+            <!-- Bulk download status -->
+            <div id="bulk-download-status" class="bulk-download-status"></div>
         </div>
     </div>
 
@@ -373,14 +512,14 @@
 
     <script>
         let selectedExtensions = new Map(JSON.parse(localStorage.getItem('selectedExtensions') || '[]'));
-        
+
         // Add function to save version constraint
         function saveVersionConstraint(value) {
             localStorage.setItem('vscodeVersion', value);
         }
-        
+
         // Add event listener for version constraint input
-        document.getElementById('vscode-version').addEventListener('change', function(e) {
+        document.getElementById('vscode-version').addEventListener('change', function (e) {
             saveVersionConstraint(e.target.value);
         });
 
@@ -389,7 +528,7 @@
             const card = button.closest('.extension-card');
             const extensionId = card.dataset.extensionId;
             const extensionInfo = JSON.parse(card.dataset.extensionInfo);
-            
+
             if (selectedExtensions.has(extensionId)) {
                 selectedExtensions.delete(extensionId);
                 card.classList.remove('extension-added');
@@ -398,9 +537,9 @@
             } else {
                 const vscodeVersion = document.getElementById('vscode-version').value;
                 const targetPlatform = document.getElementById('target-platform').value;
-                
+
                 button.disabled = true;
-                
+
                 fetch(`/vscode_downloader/api/extensions/${extensionId}/compatible/${vscodeVersion}/?targetPlatform=${targetPlatform}`)
                     .then(response => {
                         if (!response.ok) {
@@ -412,7 +551,7 @@
                         if (!data.version) {
                             throw new Error(`No version found for platform ${targetPlatform}`);
                         }
-                        
+
                         return fetch(`/vscode_downloader/api/extensions/${extensionId}/download/`, {
                             method: 'POST',
                             headers: {
@@ -481,7 +620,7 @@
                         alert(`Error: ${error.message}`);
                     });
             };
-            
+
             checkStatus();
         }
 
@@ -493,17 +632,17 @@
                         <div>
                             <div>${ext.displayName} (${id})</div>
                             <div class="extension-version">Version: ${ext.version} (VSCode ≥ ${ext.vscodeConstraint})</div>
-                            ${ext.downloading ? 
-                                `<div class="download-progress">
+                            ${ext.downloading ?
+                        `<div class="download-progress">
                                     <div class="progress-bar" style="width: ${ext.progress}%"></div>
                                     <span class="progress-text">${ext.progress}%</span>
-                                 </div>` 
-                                : ''}
+                                 </div>`
+                        : ''}
                         </div>
                         <button onclick="removeExtension('${id}')" class="action-button">Remove</button>
                     </div>
                 `).join('');
-            
+
             // Save to localStorage whenever the list changes
             localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
         }
@@ -523,10 +662,10 @@
             const extensionId = element.dataset.extensionId;
             const modal = document.getElementById('extension-modal');
             const modalContent = document.getElementById('modal-content');
-            
+
             modalContent.innerHTML = '<div class="loading">Loading extension details...</div>';
             modal.style.display = 'block';
-            
+
             fetch(`/vscode_downloader/api/extensions/${extensionId}/`)
                 .then(response => response.json())
                 .then(data => {
@@ -546,7 +685,7 @@
                 vscodeVersion: document.getElementById('vscode-version').value,
                 extensions: Array.from(selectedExtensions.values())
             };
-            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -559,7 +698,7 @@
             const file = input.files[0];
             if (file) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     const data = JSON.parse(e.target.result);
                     document.getElementById('vscode-version').value = data.vscodeVersion;
                     selectedExtensions.clear();
@@ -585,27 +724,168 @@
         }
 
         function downloadSelected() {
+            if (selectedExtensions.size === 0) {
+                showBulkStatus('Please select at least one extension to download.', 'error');
+                return;
+            }
+
             const data = {
                 vscodeVersion: document.getElementById('vscode-version').value,
                 extensions: Array.from(selectedExtensions.values())
             };
-            
-            fetch('/vscode_downloader/api/download/', {
+
+            // Show loading spinner
+            const spinner = document.getElementById('bulk-loading-spinner');
+            const progressContainer = document.getElementById('bulk-progress-container');
+            const downloadButton = document.getElementById('bulk-download-button');
+            const status = document.getElementById('bulk-download-status');
+
+            spinner.style.display = 'flex';
+            progressContainer.style.display = 'block';
+            downloadButton.disabled = true;
+            downloadButton.textContent = 'Preparing Download...';
+            status.style.display = 'none';
+
+            // Start bulk download
+            fetch('/vscode_downloader/api/bulk-download/start/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(data)
             })
-            .then(response => response.blob())
-            .then(blob => {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'vscode-extensions.zip';
-                a.click();
-                URL.revokeObjectURL(url);
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        throw new Error(data.error);
+                    }
+
+                    const downloadId = data.download_id;
+                    monitorBulkDownload(downloadId);
+                })
+                .catch(error => {
+                    // Hide loading spinner
+                    spinner.style.display = 'none';
+                    progressContainer.style.display = 'none';
+                    downloadButton.disabled = false;
+                    downloadButton.textContent = 'Download Selected';
+
+                    showBulkStatus(`Download failed: ${error.message}`, 'error');
+                });
+        }
+
+        function monitorBulkDownload(downloadId) {
+            const checkStatus = () => {
+                fetch(`/vscode_downloader/api/bulk-download/status/${downloadId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateBulkProgress(data);
+
+                        if (data.status === 'completed') {
+                            // Download completed, get the ZIP file
+                            return fetch(`/vscode_downloader/api/bulk-download/zip/${downloadId}/`);
+                        } else if (data.status === 'error') {
+                            throw new Error(data.current_file || 'Download failed');
+                        } else {
+                            // Continue monitoring
+                            setTimeout(checkStatus, 1000);
+                            return null;
+                        }
+                    })
+                    .then(response => {
+                        if (response) {
+                            return response.blob();
+                        }
+                    })
+                    .then(blob => {
+                        if (blob) {
+                            // Hide loading spinner
+                            const spinner = document.getElementById('bulk-loading-spinner');
+                            const progressContainer = document.getElementById('bulk-progress-container');
+                            const downloadButton = document.getElementById('bulk-download-button');
+
+                            spinner.style.display = 'none';
+                            progressContainer.style.display = 'none';
+                            downloadButton.disabled = false;
+                            downloadButton.textContent = 'Download Selected';
+
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'vscode_extensions.zip';
+                            a.click();
+                            URL.revokeObjectURL(url);
+
+                            showBulkStatus('Download completed successfully!', 'success');
+                        }
+                    })
+                    .catch(error => {
+                        // Hide loading spinner
+                        const spinner = document.getElementById('bulk-loading-spinner');
+                        const progressContainer = document.getElementById('bulk-progress-container');
+                        const downloadButton = document.getElementById('bulk-download-button');
+
+                        spinner.style.display = 'none';
+                        progressContainer.style.display = 'none';
+                        downloadButton.disabled = false;
+                        downloadButton.textContent = 'Download Selected';
+
+                        showBulkStatus(`Download failed: ${error.message}`, 'error');
+                    });
+            };
+
+            checkStatus();
+        }
+
+        function updateBulkProgress(data) {
+            const progressBar = document.getElementById('bulk-progress-bar-fill');
+            const progressDetails = document.getElementById('bulk-progress-details');
+            const downloadButton = document.getElementById('bulk-download-button');
+
+            // Update progress bar
+            progressBar.style.width = `${data.progress}%`;
+            progressBar.textContent = `${data.progress}%`;
+
+            // Update button text based on status
+            if (data.status === 'downloading') {
+                downloadButton.textContent = `Downloading... (${data.downloaded_files}/${data.total_files})`;
+            } else if (data.status === 'packaging') {
+                downloadButton.textContent = 'Packaging ZIP...';
+            } else if (data.status === 'completed') {
+                downloadButton.textContent = 'Download Complete!';
+            }
+
+            // Update progress details
+            if (data.details && data.details.length > 0) {
+                progressDetails.innerHTML = data.details.map(detail => {
+                    let className = 'bulk-progress-detail-item';
+                    if (detail.includes('✓')) {
+                        className += ' success';
+                    } else if (detail.includes('✗')) {
+                        className += ' error';
+                    } else {
+                        className += ' info';
+                    }
+                    return `<div class="${className}">${detail}</div>`;
+                }).join('');
+
+                // Scroll to bottom
+                progressDetails.scrollTop = progressDetails.scrollHeight;
+            }
+        }
+
+        function showBulkStatus(message, type) {
+            const status = document.getElementById('bulk-download-status');
+            status.textContent = message;
+            status.className = `bulk-download-status ${type}`;
+            status.style.display = 'block';
+
+            // Auto-hide success messages after 5 seconds
+            if (type === 'success') {
+                setTimeout(() => {
+                    status.style.display = 'none';
+                }, 5000);
+            }
         }
 
         function renderExtensionDetails(data) {
@@ -662,20 +942,21 @@
                     button.textContent = 'Remove';
                 }
             });
-            
+
             updateSelectedList();
         }
 
         // Add event listeners for version and platform changes
-        document.getElementById('vscode-version').addEventListener('change', function(e) {
+        document.getElementById('vscode-version').addEventListener('change', function (e) {
             localStorage.setItem('vscodeVersion', e.target.value);
         });
 
-        document.getElementById('target-platform').addEventListener('change', function(e) {
+        document.getElementById('target-platform').addEventListener('change', function (e) {
             localStorage.setItem('targetPlatform', e.target.value);
         });
 
         document.addEventListener('DOMContentLoaded', initializeUIState);
     </script>
 </body>
-</html> 
+
+</html>
