@@ -371,6 +371,11 @@
         .action-button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .action-button:disabled:hover {
+            background-color: #ccc;
         }
 
         /* Detailed progress styles for bulk download */
@@ -617,6 +622,7 @@
                     .catch(error => {
                         selectedExtensions.delete(extensionId);
                         updateSelectedList();
+                        updateBulkDownloadButtonState();
                         alert(`Error: ${error.message}`);
                     });
             };
@@ -645,6 +651,25 @@
 
             // Save to localStorage whenever the list changes
             localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
+
+            // Update bulk download button state
+            updateBulkDownloadButtonState();
+        }
+
+        function updateBulkDownloadButtonState() {
+            const bulkDownloadButton = document.getElementById('bulk-download-button');
+            const hasIndividualDownloadsInProgress = Array.from(selectedExtensions.values())
+                .some(ext => ext.downloading);
+
+            if (hasIndividualDownloadsInProgress) {
+                bulkDownloadButton.disabled = true;
+                bulkDownloadButton.textContent = 'Wait for individual downloads...';
+                bulkDownloadButton.title = 'Please wait for individual extension downloads to complete before starting bulk download';
+            } else {
+                bulkDownloadButton.disabled = false;
+                bulkDownloadButton.textContent = 'Download Selected';
+                bulkDownloadButton.title = '';
+            }
         }
 
         function removeExtension(extensionId) {
@@ -656,6 +681,7 @@
             }
             localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
             updateSelectedList();
+            updateBulkDownloadButtonState();
         }
 
         function loadExtensionDetails(element) {
@@ -706,6 +732,7 @@
                         selectedExtensions.set(`${ext.publisher}.${ext.extension}`, ext);
                     });
                     updateSelectedList();
+                    updateBulkDownloadButtonState();
                     // Update UI for any visible cards
                     document.querySelectorAll('.extension-card').forEach(card => {
                         const id = card.dataset.extensionId;
@@ -944,6 +971,7 @@
             });
 
             updateSelectedList();
+            updateBulkDownloadButtonState();
         }
 
         // Add event listeners for version and platform changes
