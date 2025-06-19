@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "jenkins-downloader"
+name = "vscode-downloader"
 version = "0.1.0"
 description = ""
 authors = ["Daniel Dyk <daniel.dyk87@gmail.com>"]
