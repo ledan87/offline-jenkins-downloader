@@ -433,6 +433,31 @@
         .bulk-progress-detail-item.info {
             color: #0c5460;
         }
+
+        /* Direct download link styles */
+        .direct-download-link {
+            font-size: 0.8em;
+            color: #007acc;
+            text-decoration: none;
+            margin-top: 4px;
+            display: inline-block;
+            padding: 2px 6px;
+            border: 1px solid #007acc;
+            border-radius: 3px;
+            background-color: #f8f9fa;
+            transition: all 0.2s ease;
+        }
+
+        .direct-download-link:hover {
+            background-color: #007acc;
+            color: white;
+            text-decoration: none;
+        }
+
+        .direct-download-link:before {
+            content: "↓ ";
+            font-weight: bold;
+        }
     </style>
 </head>
 
@@ -633,21 +658,27 @@
         function updateSelectedList() {
             const container = document.getElementById('selected-extensions-list');
             container.innerHTML = Array.from(selectedExtensions.entries())
-                .map(([id, ext]) => `
+                .map(([id, ext]) => {
+                    // Generate direct download URL
+                    const downloadUrl = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${ext.publisher}/vsextensions/${ext.extension}/${ext.version}/vspackage${ext.targetPlatform ? '?targetPlatform=' + ext.targetPlatform : ''}`;
+
+                    return `
                     <div class="selected-extension-item">
                         <div>
                             <div>${ext.displayName} (${id})</div>
                             <div class="extension-version">Version: ${ext.version} (VSCode ≥ ${ext.vscodeConstraint})</div>
+                            <a href="${downloadUrl}" target="_blank" class="direct-download-link">Direct Download</a>
                             ${ext.downloading ?
-                        `<div class="download-progress">
+                            `<div class="download-progress">
                                     <div class="progress-bar" style="width: ${ext.progress}%"></div>
                                     <span class="progress-text">${ext.progress}%</span>
                                  </div>`
-                        : ''}
+                            : ''}
                         </div>
                         <button onclick="removeExtension('${id}')" class="action-button">Remove</button>
                     </div>
-                `).join('');
+                `;
+                }).join('');
 
             // Save to localStorage whenever the list changes
             localStorage.setItem('selectedExtensions', JSON.stringify(Array.from(selectedExtensions.entries())));
