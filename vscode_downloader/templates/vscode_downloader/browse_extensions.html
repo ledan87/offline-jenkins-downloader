@@ -879,6 +879,67 @@
             }
         }
 
+        function tryMultipleDownloadMethods(downloadId) {
+            // Try different download methods in order of preference
+            const methods = [
+                `/vscode_downloader/chunked-download/${downloadId}/`,  // Chunked transfer encoding
+                `/vscode_downloader/static-download/${downloadId}/`,  // Static file serving
+                `/vscode_downloader/redirect-download/${downloadId}/`, // Redirect method
+                `/vscode_downloader/data-download/${downloadId}/`,     // Data URL method
+                `/vscode_downloader/alt-download/${downloadId}/`,       // Alternative content type
+                `/vscode_downloader/download/${downloadId}/`,           // Direct download
+                `/vscode_downloader/api/bulk-download/zip/${downloadId}/`  // API endpoint
+            ];
+
+            return tryDownloadMethod(methods, 0, downloadId);
+        }
+
+        function showIndividualDownloadsPage(downloadId) {
+            // If all download methods fail, show individual downloads page
+            const spinner = document.getElementById('bulk-loading-spinner');
+            const progressContainer = document.getElementById('bulk-progress-container');
+            const downloadButton = document.getElementById('bulk-download-button');
+
+            spinner.style.display = 'none';
+            progressContainer.style.display = 'none';
+            downloadButton.disabled = false;
+            downloadButton.textContent = 'Download Selected';
+
+            // Open individual downloads page in new window
+            window.open(`/vscode_downloader/individual-downloads/${downloadId}/`, '_blank');
+            showBulkStatus('All download methods blocked by gateway. Opening individual downloads page...', 'error');
+        }
+
+        function tryDownloadMethod(methods, index, downloadId) {
+            if (index >= methods.length) {
+                throw new Error('All download methods failed');
+            }
+
+            const method = methods[index];
+            console.log(`Trying download method ${index + 1}: ${method}`);
+
+            return fetch(method)
+                .then(response => {
+                    if (response.ok) {
+                        // All methods now return binary data, so handle them the same way
+                        return response.blob();
+                    } else {
+                        console.log(`Method ${index + 1} failed, trying next...`);
+                        return tryDownloadMethod(methods, index + 1, downloadId);
+                    }
+                })
+                .catch(error => {
+                    console.log(`Method ${index + 1} error:`, error);
+                    if (index + 1 < methods.length) {
+                        return tryDownloadMethod(methods, index + 1, downloadId);
+                    } else {
+                        // All methods failed, show individual downloads page
+                        showIndividualDownloadsPage(downloadId);
+                        throw error;
+                    }
+                });
+        }
+
         function downloadSelected() {
             if (selectedExtensions.size === 0) {
                 showBulkStatus('Please select at least one extension to download.', 'error');
@@ -890,7 +951,7 @@
                 extensions: Array.from(selectedExtensions.values())
             };
 
-            // Show loading spinner
+            // Show loading spinner and progress container
             const spinner = document.getElementById('bulk-loading-spinner');
             const progressContainer = document.getElementById('bulk-progress-container');
             const downloadButton = document.getElementById('bulk-download-button');
@@ -917,10 +978,12 @@
                     }
 
                     const downloadId = data.download_id;
+                    // Hide spinner immediately when monitoring starts
+                    spinner.style.display = 'none';
                     monitorBulkDownload(downloadId);
                 })
                 .catch(error => {
-                    // Hide loading spinner
+                    // Hide loading spinner and progress container on error
                     spinner.style.display = 'none';
                     progressContainer.style.display = 'none';
                     downloadButton.disabled = false;
@@ -938,8 +1001,27 @@
                         updateBulkProgress(data);
 
                         if (data.status === 'completed') {
-                            // Download completed, get the ZIP file
-                            return fetch(`/vscode_downloader/api/bulk-download/zip/${downloadId}/`);
+                            // Download completed, trigger native browser download
+                            // This bypasses McAfee Web Gateway interference
+                            window.location.href = `/vscode_downloader/api/bulk-download/zip/${downloadId}/`;
+
+                            // Update UI to show completion before navigation
+                            const downloadButton = document.getElementById('bulk-download-button');
+                            downloadButton.textContent = 'Download Complete!';
+                            showBulkStatus('Download started! Your browser should begin downloading the file.', 'success');
+
+                            // Clean up UI after a short delay to allow user to see completion
+                            setTimeout(() => {
+                                const progressContainer = document.getElementById('bulk-progress-container');
+                                const spinner = document.getElementById('bulk-loading-spinner');
+
+                                spinner.style.display = 'none';
+                                progressContainer.style.display = 'none';
+                                downloadButton.disabled = false;
+                                downloadButton.textContent = 'Download Selected';
+                            }, 2000);
+
+                            return null; // No blob to process
                         } else if (data.status === 'error') {
                             throw new Error(data.current_file || 'Download failed');
                         } else {
@@ -948,35 +1030,8 @@
                             return null;
                         }
                     })
-                    .then(response => {
-                        if (response) {
-                            return response.blob();
-                        }
-                    })
-                    .then(blob => {
-                        if (blob) {
-                            // Hide loading spinner
-                            const spinner = document.getElementById('bulk-loading-spinner');
-                            const progressContainer = document.getElementById('bulk-progress-container');
-                            const downloadButton = document.getElementById('bulk-download-button');
-
-                            spinner.style.display = 'none';
-                            progressContainer.style.display = 'none';
-                            downloadButton.disabled = false;
-                            downloadButton.textContent = 'Download Selected';
-
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'vscode_extensions.zip';
-                            a.click();
-                            URL.revokeObjectURL(url);
-
-                            showBulkStatus('Download completed successfully!', 'success');
-                        }
-                    })
                     .catch(error => {
-                        // Hide loading spinner
+                        // Hide loading spinner and progress container on error
                         const spinner = document.getElementById('bulk-loading-spinner');
                         const progressContainer = document.getElementById('bulk-progress-container');
                         const downloadButton = document.getElementById('bulk-download-button');
@@ -997,6 +1052,12 @@
             const progressBar = document.getElementById('bulk-progress-bar-fill');
             const progressDetails = document.getElementById('bulk-progress-details');
             const downloadButton = document.getElementById('bulk-download-button');
+            const spinner = document.getElementById('bulk-loading-spinner');
+            const progressContainer = document.getElementById('bulk-progress-container');
+
+            // Ensure spinner is hidden and progress container is visible when we get status updates
+            spinner.style.display = 'none';
+            progressContainer.style.display = 'block';
 
             // Update progress bar
             progressBar.style.width = `${data.progress}%`;

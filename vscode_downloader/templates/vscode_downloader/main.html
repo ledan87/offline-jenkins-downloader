@@ -337,8 +337,10 @@ or
                         updateProgress(data);
 
                         if (data.status === 'completed') {
-                            // Download completed, get the ZIP file
-                            return fetch(`/vscode_downloader/api/bulk-download/zip/${downloadId}/`);
+                            // Download completed, trigger native browser download
+                            // This bypasses McAfee Web Gateway interference
+                            window.location.href = `/vscode_downloader/api/bulk-download/zip/${downloadId}/`;
+                            return null; // No blob to process
                         } else if (data.status === 'error') {
                             throw new Error(data.current_file || 'Download failed');
                         } else {
@@ -347,14 +349,9 @@ or
                             return null;
                         }
                     })
-                    .then(response => {
-                        if (response) {
-                            return response.blob();
-                        }
-                    })
-                    .then(blob => {
-                        if (blob) {
-                            // Hide loading spinner
+                    .then(result => {
+                        if (result === null) {
+                            // Native download was triggered, hide loading spinner
                             const spinner = document.getElementById('loading-spinner');
                             const progressContainer = document.getElementById('progress-container');
                             const downloadButton = document.getElementById('download-button');
@@ -364,17 +361,7 @@ or
                             downloadButton.disabled = false;
                             downloadButton.textContent = 'Download Selected Extensions';
 
-                            // Create download link
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement('a');
-                            a.href = url;
-                            a.download = 'vscode_extensions.zip';
-                            document.body.appendChild(a);
-                            a.click();
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-
-                            showStatus('Download completed successfully!', 'success');
+                            showStatus('Download started! Your browser should begin downloading the file.', 'success');
                         }
                     })
                     .catch(error => {

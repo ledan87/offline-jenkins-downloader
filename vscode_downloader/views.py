@@ -251,8 +251,19 @@ def api_download_extensions(request):
                 zip_file.write(temp_path, arcname=vsix.get_vsix_name())
         
         zip_buffer.seek(0)
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/octet-stream')
         response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
+        response["Content-Length"] = str(len(zip_data))
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Accept-Ranges"] = "bytes"
+        response["X-Download-Options"] = "noopen"
+        response["X-Permitted-Cross-Domain-Policies"] = "none"
+        # Add headers to make it look like a direct file download
+        response["Content-Transfer-Encoding"] = "binary"
+        response["Content-Description"] = "File Transfer"
         return response
         
     except Exception as e:
@@ -602,8 +613,19 @@ def api_download_extensions(request):
                 zip_file.write(temp_path, arcname=vsix.get_vsix_name())
         
         zip_buffer.seek(0)
-        response = HttpResponse(zip_buffer.getvalue(), content_type='application/zip')
+        response = HttpResponse(zip_buffer.getvalue(), content_type='application/octet-stream')
         response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
+        response["Content-Length"] = str(len(zip_data))
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Accept-Ranges"] = "bytes"
+        response["X-Download-Options"] = "noopen"
+        response["X-Permitted-Cross-Domain-Policies"] = "none"
+        # Add headers to make it look like a direct file download
+        response["Content-Transfer-Encoding"] = "binary"
+        response["Content-Description"] = "File Transfer"
         return response
         
     except Exception as e:
@@ -617,8 +639,19 @@ def api_get_bulk_download_zip(request, download_id):
         if not zip_data:
             return JsonResponse({'error': 'ZIP file not found or expired'}, status=404)
         
-        response = HttpResponse(zip_data, content_type='application/zip')
+        response = HttpResponse(zip_data, content_type='application/octet-stream')
         response['Content-Disposition'] = 'attachment; filename="vscode_extensions.zip"'
+        response["Content-Length"] = str(len(zip_data))
+        response["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response["Pragma"] = "no-cache"
+        response["Expires"] = "0"
+        response["X-Content-Type-Options"] = "nosniff"
+        response["Accept-Ranges"] = "bytes"
+        response["X-Download-Options"] = "noopen"
+        response["X-Permitted-Cross-Domain-Policies"] = "none"
+        # Add headers to make it look like a direct file download
+        response["Content-Transfer-Encoding"] = "binary"
+        response["Content-Description"] = "File Transfer"
         return response
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
