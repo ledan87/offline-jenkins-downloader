@@ -695,3 +695,8 @@ def download_extension_async(download_id, extension_id, version, target_platform
         set_download_status(download_id, 'error', 0)
         # Optionally log the error
         print(f"Download error for {extension_id}: {str(e)}")
+
+
+def landing_page(request):
+    """Landing page view that displays available applications"""
+    return render(request, "vscode_downloader/landing.html")
