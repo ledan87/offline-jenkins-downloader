@@ -755,10 +755,12 @@
 
         function updateSelectedList() {
             const container = document.getElementById('selected-extensions-list');
+            // Get current target platform from dropdown to use for direct download links
+            const currentTargetPlatform = document.getElementById('target-platform').value;
             container.innerHTML = Array.from(selectedExtensions.entries())
                 .map(([id, ext]) => {
-                    // Generate direct download URL
-                    const downloadUrl = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${ext.publisher}/vsextensions/${ext.extension}/${ext.version}/vspackage${ext.targetPlatform ? '?targetPlatform=' + ext.targetPlatform : ''}`;
+                    // Generate direct download URL using current target platform from dropdown
+                    const downloadUrl = `https://marketplace.visualstudio.com/_apis/public/gallery/publishers/${ext.publisher}/vsextensions/${ext.extension}/${ext.version}/vspackage${currentTargetPlatform ? '?targetPlatform=' + currentTargetPlatform : ''}`;
 
                     return `
                     <div class="selected-extension-item">
@@ -1171,6 +1173,8 @@
 
         document.getElementById('target-platform').addEventListener('change', function (e) {
             localStorage.setItem('targetPlatform', e.target.value);
+            // Update the direct download links when target platform changes
+            updateSelectedList();
         });
 
         document.addEventListener('DOMContentLoaded', initializeUIState);

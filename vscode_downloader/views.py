@@ -363,7 +363,7 @@ def api_compatible_version(extension_id, vscode_target_version, target_platform)
                         'vscode_constraint': min_version
                     }
                     if version.get('targetPlatform'):
-                        result['target_platform'] = version.get('targetPlatform')
+                        result['targetPlatform'] = version.get('targetPlatform')
                     return result
                 else:
                     continue
@@ -389,7 +389,7 @@ def api_compatible_version(extension_id, vscode_target_version, target_platform)
                             'vscode_constraint': min_version
                         }
                         if version.get('targetPlatform'):
-                            result['target_platform'] = version.get('targetPlatform')
+                            result['targetPlatform'] = version.get('targetPlatform')
                         return result
                 except:
                     continue
@@ -401,9 +401,14 @@ def api_compatible_version(extension_id, vscode_target_version, target_platform)
 def api_get_compatible_version(request, extension_id, vscode_target_version):
     """API endpoint to get compatible version"""
     try:
-        target_platform = request.GET.get('target_platform', 'win32-x64')
+        # Accept both camelCase and snake_case parameter names
+        target_platform = request.GET.get('targetPlatform') or request.GET.get('target_platform', 'win32-x64')
         result = api_compatible_version(extension_id, vscode_target_version, target_platform)
         if result:
+            # Always include the requested targetPlatform in the response, even if the version doesn't have one
+            # (universal versions work for all platforms, but we want to download the platform-specific package)
+            if 'targetPlatform' not in result:
+                result['targetPlatform'] = target_platform
             return JsonResponse(result)
         return JsonResponse({'error': 'No compatible version found'}, status=404)
     except Exception as e:

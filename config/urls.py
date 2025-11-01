@@ -16,11 +16,14 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from vscode_downloader.views import landing_page
 
 urlpatterns = [
     path('', landing_page, name='landing'),
     path('admin/', admin.site.urls),
+    # Handle both with and without trailing slash to avoid 301 redirects
+    path('vscode_downloader', RedirectView.as_view(url='/vscode_downloader/', permanent=False), name='vscode_downloader_redirect'),
     path('vscode_downloader/', include('vscode_downloader.urls')),
 ]
     
